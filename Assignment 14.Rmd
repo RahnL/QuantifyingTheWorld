@@ -3,10 +3,12 @@ title: "R Notebook"
 output: html_notebook
 ---
 
+Based on Eric Larons jupyter notebook, and code from the book we're using (add references!)
+
 Download and parse data
 ```{python}
 import os, sys
-path = "Data\\"
+path = "Data"
 if not os.path.exists(path):
     os.mkdir( path, 0755)
     
@@ -50,32 +52,10 @@ for filename in files:
         print filepath,'already is uncompressed.'
         
 ```
-rg/dataexpo/2009/1990.csv.bz2 to Data/1990.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/1991.csv.bz2 to Data/1991.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/1992.csv.bz2 to Data/1992.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/1993.csv.bz2 to Data/1993.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/1994.csv.bz2 to Data/1994.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/1995.csv.bz2 to Data/1995.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/1996.csv.bz2 to Data/1996.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/1997.csv.bz2 to Data/1997.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/1998.csv.bz2 to Data/1998.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/1999.csv.bz2 to Data/1999.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/2000.csv.bz2 to Data/2000.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/2001.csv.bz2 to Data/2001.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/2002.csv.bz2 to Data/2002.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/2003.csv.bz2 to Data/2003.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/2004.csv.bz2 to Data/2004.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/2005.csv.bz2 to Data/2005.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/2006.csv.bz2 to Data/2006.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/2007.csv.bz2 to Data/2007.csv.bz2
-Downloading http://stat-computing.org/dataexpo/2009/2008.csv.bz2 to Data/2008.csv.bz2
-['Data/1987.csv.bz2', 'Data/1988.csv.bz2', 'Data/1989.csv.bz2', 'Data/1990.csv.bz2', 'Data/1991.csv.bz2', 'Data/1992.csv.bz2', 'Data/1993.csv.bz2', 'Data/1994.csv.bz2', 'Data/1995.csv.bz2', 'Data/1996.csv.bz2', 'Data/1997.csv.bz2', 'Data/1998.csv.bz2', 'Data/1999.csv.bz2', 'Data/2000.csv.bz2', 'Data/2001.csv.bz2', 'Data/2002.csv.bz2', 'Data/2003.csv.bz2', 'Data/2004.csv.bz2', 'Data/2005.csv.bz2', 'Data/2006.csv.bz2', 'Data/2007.csv.bz2', 'Data/2008.csv.bz2']
 
 
 
-```
-
-Load files
+## 2 - Load files into memory
 ```{python}
 import pandas as pd
 import numpy as np
@@ -95,10 +75,17 @@ print 'Answer from python', total_length
 df.head()
 ```
 
-```{python}
-# optional - delete the gz files.
-# Better to not do this at this time, since above code will redownload if not found.
-rm Data/*.bz2
+
+Do same import as above python, but in R, for comparison
+```{r}
+# need this, since working directory is different between python code and r
+setwd("C:\Users\rahnl\Documents\Data")
+total_length <- 0
+for(year in 1987:1988){
+    filename = paste("Data/",year,".csv",sep="")
+    x<-read.csv(filename)
+    total_length <- total_length + nrow(x)
+}
+print(total_length)
 ```
 
-2 - load data into memory
