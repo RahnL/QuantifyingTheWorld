@@ -95,3 +95,10 @@ print 'Answer from python', total_length
 df.head()
 ```
 
+```{python}
+# optional - delete the gz files.
+# Better to not do this at this time, since above code will redownload if not found.
+rm Data/*.bz2
+```
+
+2 - load data into memory
