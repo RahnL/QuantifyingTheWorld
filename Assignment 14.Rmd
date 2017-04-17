@@ -1,0 +1,97 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Download and parse data
+```{python}
+import os, sys
+path = "Data\\"
+if not os.path.exists(path):
+    os.mkdir( path, 0755)
+    
+import urllib # this is part of the standard library for python
+
+years_to_download = range(1987,2009) # get the years 1987 through 2008
+baseurl = 'http://stat-computing.org/dataexpo/2009/%d.csv.bz2' 
+
+files = []
+for year in years_to_download:
+    # prepare strings
+    url_of_data_file = baseurl%(year) # get the URL for the data file
+    save_as_filename = 'Data/%d.csv.bz2'%(year) # save as this
+    files += [save_as_filename] # save name of the compressed file
+    
+    if not os.path.isfile(save_as_filename):
+        # download file if it doesn't exist
+        print 'Downloading %s to %s'%(url_of_data_file, save_as_filename) # progress update
+        urllib.urlretrieve(url_of_data_file, save_as_filename) #execute download
+    else:
+        print 'File %s already exists. downloading skipped'%save_as_filename
+        
+    
+print files  
+
+import bz2 # this is also part of the python standard library
+
+# Now lets decompress all the files
+for filename in files:
+    # get file names
+    filepath = filename
+    newfilepath = filename[:-4]
+    if not os.path.isfile(newfilepath):
+        print 'Decompressing', filepath,'to', newfilepath
+    
+        # go through the decompressed chunks and write out to a decompressed file
+        with open(newfilepath, 'wb') as new_file, bz2.BZ2File(filepath, 'rb') as file:
+            for data in iter(lambda : file.read(100 * 1024), b''):
+                new_file.write(data)
+    else:
+        print filepath,'already is uncompressed.'
+        
+```
+rg/dataexpo/2009/1990.csv.bz2 to Data/1990.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/1991.csv.bz2 to Data/1991.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/1992.csv.bz2 to Data/1992.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/1993.csv.bz2 to Data/1993.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/1994.csv.bz2 to Data/1994.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/1995.csv.bz2 to Data/1995.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/1996.csv.bz2 to Data/1996.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/1997.csv.bz2 to Data/1997.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/1998.csv.bz2 to Data/1998.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/1999.csv.bz2 to Data/1999.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/2000.csv.bz2 to Data/2000.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/2001.csv.bz2 to Data/2001.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/2002.csv.bz2 to Data/2002.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/2003.csv.bz2 to Data/2003.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/2004.csv.bz2 to Data/2004.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/2005.csv.bz2 to Data/2005.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/2006.csv.bz2 to Data/2006.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/2007.csv.bz2 to Data/2007.csv.bz2
+Downloading http://stat-computing.org/dataexpo/2009/2008.csv.bz2 to Data/2008.csv.bz2
+['Data/1987.csv.bz2', 'Data/1988.csv.bz2', 'Data/1989.csv.bz2', 'Data/1990.csv.bz2', 'Data/1991.csv.bz2', 'Data/1992.csv.bz2', 'Data/1993.csv.bz2', 'Data/1994.csv.bz2', 'Data/1995.csv.bz2', 'Data/1996.csv.bz2', 'Data/1997.csv.bz2', 'Data/1998.csv.bz2', 'Data/1999.csv.bz2', 'Data/2000.csv.bz2', 'Data/2001.csv.bz2', 'Data/2002.csv.bz2', 'Data/2003.csv.bz2', 'Data/2004.csv.bz2', 'Data/2005.csv.bz2', 'Data/2006.csv.bz2', 'Data/2007.csv.bz2', 'Data/2008.csv.bz2']
+
+
+
+```
+
+Load files
+```{python}
+import pandas as pd
+import numpy as np
+import sys
+
+total_length=0
+for year in [1987, 1988]:
+    csvfile = 'Data/%d.csv'%(year)
+    print 'loading', csvfile
+    sys.stdout.flush()
+    
+    df=pd.read_csv(csvfile)
+    
+    total_length+=len(df)
+    
+print 'Answer from python', total_length
+df.head()
+```
+
