@@ -134,3 +134,8 @@ for year in range(1987,2009):
 pickle.dump( unique_values, open( "Data/unique_mapping.p", "wb" ) )
 ```
 
+```{python}
+print unique_values.keys()
+print 'One example:',unique_values['CancellationCode']
+```
+
