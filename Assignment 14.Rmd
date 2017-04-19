@@ -110,7 +110,8 @@ for year in range(1987,2009):
     sys.stdout.flush()
     
     # read the file
-    df = pd.read_csv(csvfile,usecols=['Origin', 'Dest', 'UniqueCarrier','TailNum','CancellationCode']) 
+    df = pd.read_csv(csvfile,usecols=['Origin', 'Dest', 'UniqueCarrier','TailNum','CancellationCode'],
+        dtype={'TailNum': str}) 
     #df = df.select_dtypes(exclude=['float64','int64']) # grab only the non-numeric data
     
     print '...finding unique values',
@@ -139,8 +140,6 @@ print unique_values.keys()
 print 'One example:',unique_values['CancellationCode']
 ```
 
-<<<<<<< HEAD
-=======
 2 - load data into memory
 
 
@@ -195,4 +194,4 @@ for year in range(1987,2009):
 # Save out the dictionary for later use
 pickle.dump( unique_values, open( "Data/unique_mapping.p", "wb" ) )
 ```
->>>>>>> refs/remotes/origin/master
+
