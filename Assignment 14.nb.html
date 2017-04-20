@@ -419,69 +419,303 @@ NameError: name 'unique_values' is not defined</code></pre>
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>2 - load data into memory</p>
+<p>import pandas as pd import numpy as np import sys import time def fast_numpy_replace(np_vector,replace_set): # you can look at this function at your leisure, but essentially we use fast set # comparison to try and speed up the analysis replace_set = np.array(list(replace_set)) # get “possible values” as a numpy array n = np.ndarray(np_vector.shape).astype(np.float64) # fill in this matrix</p>
+<pre><code>vector_as_set,idx_back = np.unique(np_vector,return_inverse=True) # get the unique indices and locations
+
+# now loop through the unique values for this dataset
+for idx,val in enumerate(vector_as_set):
+    # find what number this should be (like a hash)
+    category_num = np.nonzero(replace_set == val)[0][0]
+    n[idx_back==idx] = category_num # set the values as this category, vectorize for speed
+    
+return n.astype(np.float64)</code></pre>
+<p>fileHandle = open(‘Data/AirlineDataAll.csv’, ‘w’) # open and replace if needed years = range(1987,2009) for year in years: t = time.time()</p>
+<pre><code># get file name of the csv
+csvfile = 'Data/%d.csv'%(year)
+print 'Running...',csvfile,
+sys.stdout.flush()
+
+# read the file
+df = pd.read_csv(csvfile) 
+
+print 'loaded, ...replacing values',sys.stdout.flush()
+    
+# now replace the matching columnar data with the proper number category
+for key in unique_values.keys():
+    if key in df:
+        print key[0:4],
+        sys.stdout.flush()
+        tmp = df[key].values.astype(np.str)
+        df[key] = fast_numpy_replace(tmp,unique_values[key])
+ 
+print '...',sys.stdout.flush()
+
+for col in df:
+    df[col] = np.round(df[col].astype(np.float64)) # use floats to keep the nan's inline with numpy representation
+
+print 'writing',sys.stdout.flush()
+
+# these lines make one large file with the numeric data
+# it also solves a problem with pandas closing the file that takes an inordinate amount of time
+# NOTE: using binary here would be a huge speedup, but I am not sure about the binary structure of the 
+# backing file for bigmatrix, so we stick with CSV
+# TODO: find out if the backing file is just a dump of the c struct to file
+if year==years[0]:
+    df.to_csv(fileHandle,index=False, index_label=False, na_rep=&quot;NA&quot;,float_format='%.0f')
+else:
+    df.to_csv(fileHandle, mode='a', header=False, index=False, index_label=False,  na_rep=&quot;NA&quot;, float_format='%.0f')
+    
+print ', %.2f sec.'%(time.time()-t)
+del df</code></pre>
+<p>print ‘closing file’, sys.stdout.flush()</p>
+<p>fileHandle.close() print ‘…Done’ ```</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudG90YWxfbGVuZ3RoIDwtIDBcbmZvcih5ZWFyIGluIDE5ODc6MTk4OCl7XG4gICAgZmlsZW5hbWUgPSBwYXN0ZShcIkRhdGEvXCIseWVhcixcIi5jc3ZcIixzZXA9XCJcIilcbiAgICB4PC1yZWFkLmNzdihmaWxlbmFtZSlcbiAgICB0b3RhbF9sZW5ndGggPC0gdG90YWxfbGVuZ3RoICsgbnJvdyh4KVxufVxucHJpbnQodG90YWxfbGVuZ3RoKVxuYGBgIn0= -->
-<pre class="r"><code>total_length &lt;- 0
-for(year in 1987:1988){
-    filename = paste(&quot;Data/&quot;,year,&quot;.csv&quot;,sep=&quot;&quot;)
-    x&lt;-read.csv(filename)
-    total_length &lt;- total_length + nrow(x)
-}
-print(total_length)</code></pre>
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>Replacing unique values as integer and resaving dataframe. And creating one large file AirlineDataAll with data for all years</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgcHl0aG9uXG4jIG5vdyBsZXRzIHRha2UgYSBsb29rIHRvIHNlZSB3aGF0IGhhcyBhY3R1YWxseSBjaGFuZ2VkIGluIHRoZSBmaWxlXG4jIGxldCdzIGxvYWQgdGhlIGhlYWQgb2YgMTk4NyBhbmQgdGhlIGJpZyBDU1YgZmlsZSB0byBzZWUgaG93IHRoZXkgY29tcGFyZVxucHJpbnQgJ05ldyBGaWxlIEZvcm1hdDonXG4haGVhZCBEYXRhL0FpcmxpbmVEYXRhQWxsLmNzdlxucHJpbnQgJydcbnByaW50ICdPbGQgRmlsZSBGb3JtYXQnXG4haGVhZCBEYXRhLzE5ODcuY3N2XG5cblxuIyBsZXQncyBub3cgbG9vayBhdCB0aGUgdGFpbCBvZiBvdXIgYmlnIGRhdGFzZXQgYW5kIHRoZSB0YWlsIG9mIHRoZSAyMDA4IGZpbGVcbiMgZG8gdGhleSBjb21wYXJlIG5pY2VseT9cbnByaW50ICdOZXcgRmlsZSBGb3JtYXQ6J1xuIXRhaWwgRGF0YS9BaXJsaW5lRGF0YUFsbC5jc3ZcbnByaW50ICcnXG5wcmludCAnT2xkIEZpbGUgRm9ybWF0OidcbiF0YWlsIERhdGEvMjAwOC5jc3ZcblxuXG4hbHMgLWFsbCBEYXRhLypBbGwuY3N2IFxuYGBgIn0= -->
+<pre class="python"><code># now lets take a look to see what has actually changed in the file
+# let's load the head of 1987 and the big CSV file to see how they compare
+print 'New File Format:'
+!head Data/AirlineDataAll.csv
+print ''
+print 'Old File Format'
+!head Data/1987.csv
+
+
+# let's now look at the tail of our big dataset and the tail of the 2008 file
+# do they compare nicely?
+print 'New File Format:'
+!tail Data/AirlineDataAll.csv
+print ''
+print 'Old File Format:'
+!tail Data/2008.csv
+
+
+!ls -all Data/*All.csv </code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
-<p>2.1 Preprocessing Data in Chunks</p>
+</div>
+<div id="handling-out-of-core-memory-and-analyzing-data-using-graphlab-create" class="section level2">
+<h2>4 Handling out of core memory and analyzing data using Graphlab Create</h2>
+</div>
+<div id="loading-12-gb-data" class="section level1">
+<h1>4.1 Loading 12 gb data</h1>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgcHl0aG9uXG4jIEluIHRoaXMgZGF0YSwgdGhlcmUgYXJlIG11bHRpcGxlIHZhcmlhYmxlcyB0aGF0IGFyZSBvYmplY3RzXG4jIHRoZXNlIG5lZWQgdG8gYmUgYXBwcm9wcmlhdGVseSBjb252ZXJ0ZWQgdG8gbnVtYmVycyAoaW50ZWdlcnMpIFxuIyBUbyBkbyB0aGlzLCB3ZSBtdXN0IGtub3cgdGhlIHVuaXFlIHZhbHVlcyBpbiBlYWNoIG9mIHRoZSBjb2x1bW5zLCBsZXQncyBkbyB0aGlzIGZpcnN0XG5pbXBvcnQgcGFuZGFzIGFzIHBkXG5pbXBvcnQgbnVtcHkgYXMgbnBcbmltcG9ydCBzeXNcbmltcG9ydCB0aW1lXG5pbXBvcnQgX3BpY2tsZSBhcyBwaWNrbGVcblxudW5pcXVlX3ZhbHVlcyA9IHt9ICMgY3JlYXRlIGFuIGVtcHR5IGRpY3Rpb25hcnkgb2YgdGhlIGNvbHVtbiBuYW1lIGFuIHRoZSB1bmlxdWUgdmFsdWVzIGluIGl0XG5mb3IgeWVhciBpbiByYW5nZSgxOTg3LDIwMDkpOlxuICAgIHQgPSB0aW1lLnRpbWUoKVxuICAgICMgZ2V0IGZpbGUgbmFtZSBvZiB0aGUgY3N2XG4gICAgY3N2ZmlsZSA9ICdEYXRhLyVkLmNzdiclKHllYXIpXG4gICAgcHJpbnQgKCdsb2FkaW5nJyxjc3ZmaWxlLCApXG4gICAgc3lzLnN0ZG91dC5mbHVzaCgpXG4gICAgXG4gICAgIyByZWFkIHRoZSBmaWxlXG4gICAgZGYgPSBwZC5yZWFkX2Nzdihjc3ZmaWxlLHVzZWNvbHM9WydPcmlnaW4nLCAnRGVzdCcsICAgJ1VuaXF1ZUNhcnJpZXInLCdUYWlsTnVtJywnQ2FuY2VsbGF0aW9uQ29kZSddKSBcbiAgICAjZGYgPSBkZi5zZWxlY3RfZHR5cGVzKGV4Y2x1ZGU9WydmbG9hdDY0JywnaW50NjQnXSkgIyBncmFiIG9ubHkgdGhlIG5vbi1udW1lcmljIGRhdGFcbiAgICBcbiAgICBwcmludCAoJy4uLmZpbmRpbmcgdW5pcXVlIHZhbHVlcycsc3lzLnN0ZG91dC5mbHVzaCgpKVxuICAgIFxuICAgIGZvciBjb2wgaW4gZGYuY29sdW1uczpcbiAgICAgICAgIyBjaGVjayB0byBzZWUgaWYgd2UgaGF2ZSBzZWVuIHRoaXMgY29sdW1uIGJlZm9yZVxuICAgICAgICBzID0gc2V0KGRmW2NvbF0udmFsdWVzLmFzdHlwZShucC5zdHIpKVxuICAgICAgICBpZiBjb2wgbm90IGluIHVuaXF1ZV92YWx1ZXM6XG4gICAgICAgICAgICAjIGlmIG5vdCwgdGhlbiBjcmVhdGUgYSBrZXkgd2l0aCB0aGUgdW5pcXVlIHZhbHVlcyBmb3IgdGhhdCBjb2x1bW4gaW4gaXRcbiAgICAgICAgICAgIHVuaXF1ZV92YWx1ZXNbY29sXSA9IHNcbiAgICAgICAgZWxzZTpcbiAgICAgICAgICAgICMgb3RoZXJ3aXNlIG1ha2Ugc3VyZSB0aGF0IHRoZSByZW1haW5pbmcgY29sdW1ucyBhcmUgdW5pcXVlXG4gICAgICAgICAgICB1bmlxdWVfdmFsdWVzW2NvbF0gfD0gc1xuICAgICAgICAgICAgXG4gICAgcHJpbnQoICcuLi5maW5pc2hlZCwgJS4yZiBzZWNvbmRzJyUodGltZS50aW1lKCktdCkpXG4gICAgc3lzLnN0ZG91dC5mbHVzaCgpXG4gICAgZGVsIGRmXG5cbiMgU2F2ZSBvdXQgdGhlIGRpY3Rpb25hcnkgZm9yIGxhdGVyIHVzZVxucGlja2xlLmR1bXAoIHVuaXF1ZV92YWx1ZXMsIG9wZW4oIFwiRGF0YS91bmlxdWVfbWFwcGluZy5wXCIsIFwid2JcIiApIClcbmBgYCJ9 -->
-<pre class="python"><code># In this data, there are multiple variables that are objects
-# these need to be appropriately converted to numbers (integers) 
-# To do this, we must know the uniqe values in each of the columns, let's do this first
-import pandas as pd
-import numpy as np
-import sys
-import time
-import _pickle as pickle
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgcHl0aG9uXG5pbXBvcnQgZ3JhcGhsYWIgYXMgZ2xcbnNmID0gZ2wuU0ZyYW1lKCdEYXRhL0FpcmxpbmVEYXRhQWxsLmNzdicpXG5zZi5zaGFwZVxuYGBgIn0= -->
+<pre class="python"><code>import graphlab as gl
+sf = gl.SFrame('Data/AirlineDataAll.csv')
+sf.shape</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="preprocess-concatenate-and-save-compressed-binary-version-to-perform-operations" class="section level1">
+<h1>4.2 Preprocess: Concatenate and save compressed binary version to perform operations</h1>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgcHl0aG9uXG5kZWwgc2YgIyBnZXQgcmlkIG9mIHRoZSBvbGQgdGhpbmdcbiMgV2hhdCBhYm91dCBqdXN0IGxvYWRpbmcgdXAgYWxsIHRoZSBkYXRhIHVzaW5nIHRoZSBTRnJhbWUgVXRpbGl0eSBmb3IgbG9hZGluZyBDU1YgZmlsZXM/XG4jIFdlIHdpbGwgbmVlZCB0byBtYWtlIHN1cmUgdGhhdCB0aGUgU0ZyYW1lIGhhcyBjb25zaXN0ZW50IGRhdGF0eXBlcywgc28gd2Ugd2lsbCBnaXZlIHRoZSB2YWx1ZSBmb3IgZWFjaCBoZWFkZXJcbmNvbHVtbl9oaW50cz1baW50LGludCxpbnQsaW50LGludCxpbnQsaW50LGludCxzdHIsaW50LHN0cixpbnQsaW50LGludCxpbnQsaW50LHN0cixzdHIsaW50LGludCxpbnQsaW50LHN0cixpbnQsaW50LGludCxpbnQsaW50LGludF1cblxudCA9IHRpbWUudGltZSgpXG4jIG5vdyBsb2FkIHRoZSBmaXJzdCBTRnJhbWVcbnNmID0gZ2wuU0ZyYW1lKCkgIy5yZWFkX2NzdignRGF0YS8xOTg3LmNzdicsY29sdW1uX3R5cGVfaGludHM9Y29sdW1uX2hpbnRzKVxuXG4jIGFuZCB0aGVuIGFwcGVuZCBlYWNoIFNGcmFtZSBpbiBhIGZvciBsb29wXG5mb3IgeWVhciBpbiByYW5nZSgxOTg3LDIwMDkpOlxuICAgIHByaW50ICdyZWFkICVkIGxpbmVzLCByZWFkaW5nIG5leHQgZmlsZSAlZC5jc3YnJShzZi5zaGFwZVswXSx5ZWFyKVxuICAgIHN5cy5zdGRvdXQuZmx1c2goKVxuICAgIHNmdG1wID0gZ2wuU0ZyYW1lLnJlYWRfY3N2KCdEYXRhLyVkLmNzdiclKHllYXIpLGNvbHVtbl90eXBlX2hpbnRzPWNvbHVtbl9oaW50cylcbiAgICBzZiA9IHNmLmFwcGVuZChzZnRtcClcblxucHJpbnQgJ0l0IHRvb2sgJS4yZiBzZWNvbmRzIHRvIGNvbmNhdGVuYXRlIHRoZSBtZW1vcnkgbWFwcGVkIGZpbGUnJSh0aW1lLnRpbWUoKS10KVxuXG50ID0gdGltZS50aW1lKClcbnByaW50ICdTYXZpbmcuLi4nLFxuc2Yuc2F2ZSgnRGF0YS9zZnJhbWVfZGlyZWN0b3J5JykgIyBzYXZlIGEgY29tcHJlc3NlZCB2ZXJzaW9uIG9mIHRoaXMgU0ZyYW1lXG5wcmludCAndG9vayAlLjJmIHNlY29uZHMnJSh0aW1lLnRpbWUoKS10KSwnU2hhcGUgb2YgU0ZyYW1lIGlzJyxzZi5zaGFwZVxuXG5cblxuIyBJZiB5b3UgaGF2ZSBhbHJlYWR5IHJ1biB0aGUgbm90ZWJvb2sgYWJvdmUgYW5kIGp1c3Qgd2FudCB0byBsb2FkIHVwIHRoZSBkYXRhXG4jIHRoZW4geW91IGNhbiByZWxvYWQgdGhlIFNGcmFtZSBoZXJlXG5pbXBvcnQgZ3JhcGhsYWIgYXMgZ2xcblxuc2YgPSBnbC5sb2FkX3NmcmFtZSgnRGF0YS9zZnJhbWVfZGlyZWN0b3J5JylcbmBgYCJ9 -->
+<pre class="python"><code>del sf # get rid of the old thing
+# What about just loading up all the data using the SFrame Utility for loading CSV files?
+# We will need to make sure that the SFrame has consistent datatypes, so we will give the value for each header
+column_hints=[int,int,int,int,int,int,int,int,str,int,str,int,int,int,int,int,str,str,int,int,int,int,str,int,int,int,int,int,int]
 
-unique_values = {} # create an empty dictionary of the column name an the unique values in it
+t = time.time()
+# now load the first SFrame
+sf = gl.SFrame() #.read_csv('Data/1987.csv',column_type_hints=column_hints)
+
+# and then append each SFrame in a for loop
 for year in range(1987,2009):
-    t = time.time()
-    # get file name of the csv
-    csvfile = 'Data/%d.csv'%(year)
-    print ('loading',csvfile, )
+    print 'read %d lines, reading next file %d.csv'%(sf.shape[0],year)
     sys.stdout.flush()
-    
-    # read the file
-    df = pd.read_csv(csvfile,usecols=['Origin', 'Dest',   'UniqueCarrier','TailNum','CancellationCode']) 
-    #df = df.select_dtypes(exclude=['float64','int64']) # grab only the non-numeric data
-    
-    print ('...finding unique values',sys.stdout.flush())
-    
-    for col in df.columns:
-        # check to see if we have seen this column before
-        s = set(df[col].values.astype(np.str))
-        if col not in unique_values:
-            # if not, then create a key with the unique values for that column in it
-            unique_values[col] = s
-        else:
-            # otherwise make sure that the remaining columns are unique
-            unique_values[col] |= s
-            
-    print( '...finished, %.2f seconds'%(time.time()-t))
-    sys.stdout.flush()
-    del df
+    sftmp = gl.SFrame.read_csv('Data/%d.csv'%(year),column_type_hints=column_hints)
+    sf = sf.append(sftmp)
 
-# Save out the dictionary for later use
-pickle.dump( unique_values, open( &quot;Data/unique_mapping.p&quot;, &quot;wb&quot; ) )</code></pre>
+print 'It took %.2f seconds to concatenate the memory mapped file'%(time.time()-t)
+
+t = time.time()
+print 'Saving...',
+sf.save('Data/sframe_directory') # save a compressed version of this SFrame
+print 'took %.2f seconds'%(time.time()-t),'Shape of SFrame is',sf.shape
+
+
+
+# If you have already run the notebook above and just want to load up the data
+# then you can reload the SFrame here
+import graphlab as gl
+
+sf = gl.load_sframe('Data/sframe_directory')</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="analyzing-popular-airports-to-fly-from" class="section level1">
+<h1>4.3 Analyzing popular airports to fly from</h1>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgcHl0aG9uXG5cbiMgdG8gcGVyZm9ybSBncm91cGluZyBhbmQgc3BsaXR0aW5nXG4jIHdlIG5lZWQgdG8gc3BlY2lmeSAoMSkgd2hpY2ggY29sdW1uKHMpIHRvIGdyb3VwIHRoZSBTRnJhbWUgdXNpbmcsIGFuZCBcbiMgICAgICAgICAgICAgICAgICAgICgyKSB3aGF0IGZ1bmN0aW9uIHdlIHdhbnQgdG8gcGVyZm9ybSBvbiB0aGUgZ3JvdXBcbiMgaW4gZ3JhcGhsYWIsIHdlIG9ubHkgaGF2ZSBhIGZldyBvcHRpb25zIGZvciBwZXJmb3JtaW5nIG9uIGVhY2ggb2YgdGhlIGdyb3Vwcy4gXG4jIEhlcmUsIGxldHMga2VlcCBpdCBzaW1wbGUtLWxldCdzIGdyb3VwIGJ5IHRoZSBhaXJwb3J0IG9yaWdpbiBhbmQgdGhlblxuIyAgdXNlIHRoZSBidWlsdGluICdjb3VudCcgZnVuY3Rpb24gdG8gYWdncmVnYXRlIHRoZSByZXN1bHRzXG4jIFRoZSByZXN1bHQgaXMgYW5vdGhlciBTRnJhbWUgd2l0aCB0aGUgVW5pcXVlIG9yaWdpbiBuYW1lcyBhcyBhIGNvbHVtbiBhbmQgdGhlXG4jICBudW1iZXIgb2YgZW50cmllcyBpbiBlYWNoIGdyb3VwIGluIGFub3RoZXIgY29sdW1uXG4ldGltZSBzZl9jb3VudHMgPSBzZi5ncm91cGJ5KCdPcmlnaW4nLCB7J251bV9mbGlnaHRzJzpnbC5hZ2dyZWdhdGUuQ09VTlQoKX0pXG5zZl9jb3VudHNcblxuZnJvbSBtYXRwbG90bGliIGltcG9ydCBweXBsb3QgYXMgcGx0XG5pbXBvcnQgbnVtcHkgYXMgbnBcblxuJW1hdHBsb3RsaWIgaW5saW5lXG5wbHQuc3R5bGUudXNlKCdnZ3Bsb3QnKVxuXG4jIEFzIHNlZW4gYWJvdmUsIHRoZSBzZl9jb3VudHMgU0ZyYW1lIGhhcyB0aGUgb3JpZ2luIG9mIHRoZSBmbGlnaHQgb24gdGhlIGxlZnRcbiMgYW5kIHRoZSBjb3VudCBvZiBmbGlnaHRzIG9uIHRoZSByaWdodCBcblxuIyBsZXQncyBncmFiIHRoZSB0b3AgMTAgZW50cmllc1xuc2ZfdG9wID0gc2ZfY291bnRzLnRvcGsoJ251bV9mbGlnaHRzJywxMCkgIyB0aGlzIGlzIGJ1aWx0aW4gY29tbWFuZCBpbiBncmFwaGxhYlxuXG5haXJwb3J0cyA9IG5wLmFycmF5KHNmX3RvcFsnT3JpZ2luJ10pXG5jb3VudHMgPSBucC5hcnJheShzZl90b3BbJ251bV9mbGlnaHRzJ10pXG5cbmZpZyA9IHBsdC5maWd1cmUoZmlnc2l6ZT0oOCw0KSlcbnBsdC5iYXJoKHJhbmdlKGxlbihjb3VudHMpKSxjb3VudHMpXG5cbiMgYW5kIHNldCB0aGVtIG9uIHRoZSBwbG90XG5wbHQueXRpY2tzKHJhbmdlKGxlbihhaXJwb3J0cykpLCBhaXJwb3J0cylcblxucGx0LnNob3coKVxuYGBgIn0= -->
+<pre class="python"><code>
+# to perform grouping and splitting
+# we need to specify (1) which column(s) to group the SFrame using, and 
+#                    (2) what function we want to perform on the group
+# in graphlab, we only have a few options for performing on each of the groups. 
+# Here, lets keep it simple--let's group by the airport origin and then
+#  use the builtin 'count' function to aggregate the results
+# The result is another SFrame with the Unique origin names as a column and the
+#  number of entries in each group in another column
+%time sf_counts = sf.groupby('Origin', {'num_flights':gl.aggregate.COUNT()})
+sf_counts
+
+from matplotlib import pyplot as plt
+import numpy as np
+
+%matplotlib inline
+plt.style.use('ggplot')
+
+# As seen above, the sf_counts SFrame has the origin of the flight on the left
+# and the count of flights on the right 
+
+# let's grab the top 10 entries
+sf_top = sf_counts.topk('num_flights',10) # this is builtin command in graphlab
+
+airports = np.array(sf_top['Origin'])
+counts = np.array(sf_top['num_flights'])
+
+fig = plt.figure(figsize=(8,4))
+plt.barh(range(len(counts)),counts)
+
+# and set them on the plot
+plt.yticks(range(len(airports)), airports)
+
+plt.show()</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="analyzing-departure-delays-at-specific-times-of-day" class="section level1">
+<h1>4.4 Analyzing Departure delays at specific times of day</h1>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgcHl0aG9uXG5mcm9tIG1hdGggaW1wb3J0IGZsb29yXG4jIGZpcnN0LCBsZXQncyBjcmVhdGUgYSBuZXcgY29sdW1uIGluIHRoaXMgU0ZyYW1lIHRoYXQgaGFzIHRoZSBkZXBhcnR1cmUgdGltZSBmbG9vcmVkIHRvIHRoZSBuZWFyZXN0IGhvdXJcbnNmWydEZXBUaW1lQnlIb3VyJ10gPSBzZlsnQ1JTRGVwVGltZSddLmFwcGx5KGxhbWJkYSB4OiBmbG9vcih4LzEwMCksZHR5cGU9aW50KVxuc2ZbJ0RlcFRpbWVCeUhvdXInXSAjIGFuZCBwcmludCBhIGZldyBvZiB0aGVtIChub3RlOiB0aGUgY29sdW1uIGhhcyBub3QgYmVlbiBldmFsdWF0ZWQgeWV0KVxuXG4jIExldCdzIG5vdyBjaGFuZ2UgdGhlIGhvdXJzIG9mIHRoZSBkYXkgdGhhdCBhcmUgZXF1YWwgdG8gMjRcbiMgd2UgbmVlZCB0byBiZSBjYXJlZnVsIGhlcmUgYmVjYXN1ZSBlYWNoIGNvbHVtbiBpcyBub3QgaW1tdXRhYmxlXG4jIGluIHBhbmRhcyB0aGlzIHdvdWxkIGJlOlxuIyAgICBkZi5EZXBUaW1lQnlIb3VyW2RmLkRlcFRpbWVCeUhvdXI9PTI0XSA9IDBcbiMgYnV0IHdlIGNhbnQganVzdCBjaGFuZ2UgYSBmZXcgdmFsdWVzIGluIHRoZSBjb2x1bW4sIHdlIG5lZWQgdG8gY2hhbmdlIHRoZW0gYWxsIGFuZCByZXBsYWNlIHRoZW1cbiMgZG9uJ3Qgd29ycnkgdGhvdWdoLCBHcmFwaGxhYiBkb2VzIHRoaXMgc21hcnRseVxuc2ZbJ0RlcFRpbWVCeUhvdXInXSA9IHNmWydEZXBUaW1lQnlIb3VyJ10uYXBwbHkobGFtYmRhIHg6IDAgaWYgeD09MjQgZWxzZSB4KVxuIyBhZ2FpbiwgdGhpcyBjb2x1bW4gaGFzIG5vdCBiZWVuIGV2YWx1YXRlZCB5ZXQgYmVjYXVzZSB0aGF0IHZhbHVlIGhhcyBub3QgeWV0IGJlZW4gYWNjZXNzZWRcblxuIyBub3cgbGV0cyBncm91cCB0aGUgU0ZyYW1lIGJ5IHRoZSBob3VycyBhbmQgY2FsY3VsYXRlIHRoZSBwZXJjZW50aWxlcyBvZiBlYWNoIGdyb3VwXG4jIGhlcmUgaXMgd2hlcmUgdGhlIGxhenkgZXZhbHVhdGlvbiBhY3R1YWxseSBoYXBwZW5zIHNvIHRoaXMgdGFrZXMgYSBsaXR0bGUgd2hpbGUgdG8gY29tcHV0ZVxuXG4jIHRoZSBncm91cGJ5IGZ1bmN0aW9uIHdpbGwgcGFydGl0aW9uIG91ciBTRnJhbWUgaW50byBncm91cHMgYmFzZWQgdXBvbiB0aGUgZ2l2ZW4gY29sdW1uIG9mIGRhdGFcbiMgbmV4dCwgd2UgbmVlZCB0byB0ZWxsIGdyYXBobGFiIHdoYXQgb3BlcmF0aW9ucyB0byBwZXJmb3JtIG9uIHRoZSBncm91cCBhbmQgd2hhdCByb3dzXG4jIHRvIGRvIHRoYXQsIHdlIHNlbmQgaW4gYSBkaWN0aW9uYXJ5IG9mIG5hbWVzIGFuZCAnb3BlcmF0aW9ucycgXG4jIFdlIGRpZCBhIHNpbWlsYXIgb3BlcmF0aW9uIGFib3ZlIHdpdGggdGhlICdDT1VOVCcgYWdncmVnYXRvclxuIyB0aGVyZSBhcmUgb25seSBhIGNlcnRhaW4gbnVtYmVyIG9mIG9wZXJhdG9ycyB3ZSBjYW4gY2hvb3NlIGZyb20sIHdlIHdpbGwgY2hvb3NlIHRvIHVzZSB0aGUgJ1FVQU5USUxFJ1xuIyAgIGFnZ3JlZ2F0b3Igb24gdGhlIGNvbHVtbiAnRGVwRGVsYXknLiBXZSB3YW50IHRvIHRha2UgdGhlIHBlcmNlbnRpbGVzIFswLjkwLDAuOTksMC45OTksMC45OTk5XVxuIyBXZSBjYW4gYWxzbyBwZXJmb3JtIG90aGVyIG9wZXJhdGlvbnMgYnkgYWRkaW5nIGVudHJpZXMgaW4gdGhlIGRpY3RvbmFyeVxuIyBTbyB3ZSB3aWxsIGFsc28gdGFrZSB0aGUgJ01BWCcgb2YgZWFjaCBncm91cFxuaW1wb3J0IHRpbWVcbnQgPSB0aW1lLnRpbWUoKVxuZGVsYXlfc2YgPSBzZi5ncm91cGJ5KCdEZXBUaW1lQnlIb3VyJywgXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgeydkZWxheV9xdWFudGlsZXMnOmdsLmFnZ3JlZ2F0ZS5RVUFOVElMRSgnRGVwRGVsYXknLCBbMC45MCwwLjk5LDAuOTk5LDAuOTk5OV0pLFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAnZGVsYXlfbWF4JzpnbC5hZ2dyZWdhdGUuTUFYKCdEZXBEZWxheScpfSlcbiMgdGhpcyByZXR1cm5zIGEgbmV3IFNGcmFtZSB3aXRoIHRoZSBzcGVjaWZpZWQgY29sdW1ucyBmcm9tIGVhY2ggYWdncmVnYXRpb25cblxucHJpbnQgJ1Rvb2sgJS4yZiBzZWNvbmRzIHRvIHJ1biclKHRpbWUudGltZSgpLXQpXG5gYGAifQ== -->
+<pre class="python"><code>from math import floor
+# first, let's create a new column in this SFrame that has the departure time floored to the nearest hour
+sf['DepTimeByHour'] = sf['CRSDepTime'].apply(lambda x: floor(x/100),dtype=int)
+sf['DepTimeByHour'] # and print a few of them (note: the column has not been evaluated yet)
+
+# Let's now change the hours of the day that are equal to 24
+# we need to be careful here becasue each column is not immutable
+# in pandas this would be:
+#    df.DepTimeByHour[df.DepTimeByHour==24] = 0
+# but we cant just change a few values in the column, we need to change them all and replace them
+# don't worry though, Graphlab does this smartly
+sf['DepTimeByHour'] = sf['DepTimeByHour'].apply(lambda x: 0 if x==24 else x)
+# again, this column has not been evaluated yet because that value has not yet been accessed
+
+# now lets group the SFrame by the hours and calculate the percentiles of each group
+# here is where the lazy evaluation actually happens so this takes a little while to compute
+
+# the groupby function will partition our SFrame into groups based upon the given column of data
+# next, we need to tell graphlab what operations to perform on the group and what rows
+# to do that, we send in a dictionary of names and 'operations' 
+# We did a similar operation above with the 'COUNT' aggregator
+# there are only a certain number of operators we can choose from, we will choose to use the 'QUANTILE'
+#   aggregator on the column 'DepDelay'. We want to take the percentiles [0.90,0.99,0.999,0.9999]
+# We can also perform other operations by adding entries in the dictonary
+# So we will also take the 'MAX' of each group
+import time
+t = time.time()
+delay_sf = sf.groupby('DepTimeByHour', 
+                            {'delay_quantiles':gl.aggregate.QUANTILE('DepDelay', [0.90,0.99,0.999,0.9999]),
+                             'delay_max':gl.aggregate.MAX('DepDelay')})
+# this returns a new SFrame with the specified columns from each aggregation
+
+print 'Took %.2f seconds to run'%(time.time()-t)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgcHl0aG9uXG4jIHNvcnQgaXQgYnkgd2hlbiBkZXBhcnRlZCBhbmQgZGlzcGxheSBpdFxuZGVsYXlfc2YgPSBkZWxheV9zZi5zb3J0KCdEZXBUaW1lQnlIb3VyJylcbmRlbGF5X3NmXG5gYGAifQ== -->
+<pre class="python"><code># sort it by when departed and display it
+delay_sf = delay_sf.sort('DepTimeByHour')
+delay_sf</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgcHl0aG9uXG4jIHRvIHVzZSBtYXRwbG90bGliLCB3ZSBuZWVkIHRvIGNvbnZlcnQgb3ZlciB0byBudW1weSBhcnJheXNcbiMgdGhpcyBpcyBhIGZpbmUgb3BlcmF0aW9uIGJlY2F1c2UgdGhlIG5ldyBhZ2dyZWdhdGVkIFNGcmFtZSB3ZSBhcmUgXG4jIHdvcmtpbmcgKGRlbGF5X3NmKSB3aXRoIGlzIHF1aXRlIHNtYWxsXG54ID0gbnAuYXJyYXkoZGVsYXlfc2ZbJ0RlcFRpbWVCeUhvdXInXSlcbnkgPSBucC5hcnJheShkZWxheV9zZlsnZGVsYXlfcXVhbnRpbGVzJ10pXG5cbnBsdC5maWd1cmUoZmlnc2l6ZT0oMTAsNCkpXG5wbHQuc3VicGxvdCgxLDIsMSlcbnBsdC5wbG90KHgseSlcbnBsdC55bGFiZWwoJ01pbnV0ZXMgRGVsYXllZCcpXG5wbHQueGxhYmVsKCdIb3VyIG9mIERheScpXG5cblxucGx0LnN1YnBsb3QoMSwyLDIpXG5wbHQucGxvdCh4LHkpXG5wbHQueGxhYmVsKCdIb3VyIG9mIERheScpXG5wbHQueWxpbSgwLDE0MDApICMgbWFrZSB0aGUgc2FtZSBheGVzIGFzIGluIHRoZSBib29rXG5wbHQubGVnZW5kKFsnMC45JywnMC45OScsJzAuOTk5JywnMC45OTk5J10pXG5cbnBsdC5zaG93KClcbmBgYCJ9 -->
+<pre class="python"><code># to use matplotlib, we need to convert over to numpy arrays
+# this is a fine operation because the new aggregated SFrame we are 
+# working (delay_sf) with is quite small
+x = np.array(delay_sf['DepTimeByHour'])
+y = np.array(delay_sf['delay_quantiles'])
+
+plt.figure(figsize=(10,4))
+plt.subplot(1,2,1)
+plt.plot(x,y)
+plt.ylabel('Minutes Delayed')
+plt.xlabel('Hour of Day')
+
+
+plt.subplot(1,2,2)
+plt.plot(x,y)
+plt.xlabel('Hour of Day')
+plt.ylim(0,1400) # make the same axes as in the book
+plt.legend(['0.9','0.99','0.999','0.9999'])
+
+plt.show()</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="calculate-plane-age-using-dato" class="section level1">
+<h1>4.5 Calculate plane age using Dato</h1>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgcHl0aG9uXG4jIG9ubHkgdXNlIHllYXJzIHdoZXJlIHRoZSB0YWlsIG51bWJlciB3YXMgcmVjb3JkZWRcbiMgd2UgY2FuIG1hbmlwdWxhdGUgdGhlIFNGcmFtZSBmYWlybHkgZWFzaWx5IGluIGdyYXBobGFiLCBzbyBsZXQncyBkbyBpdFxuc2ZfdG1wID0gc2ZbWydUYWlsTnVtJywnWWVhcicsJ01vbnRoJywnRGVwRGVsYXknXV1bc2ZbJ1llYXInXT4xOTk0XVxuIyBsZXRzIHRyeSB0byBtYWtlIGEgZnVuY3Rpb24gZm9yIGdldHRpbmcgdGhlIGFnZSBvZiB0aGUgcGxhbmVcbiMgRmlyc3QgbGV0cyBqdXN0IHNhdmUgdGhlIHBsYW5lJ3MgYWdlIGluIHllYXJzXG5zZl90bXBbJ0ZsaWdodEFnZSddID0gMTIqc2ZfdG1wWydZZWFyJ10rc2ZfdG1wWydNb250aCddLTFcblxuIyBhbmQgdGFrZSB0aGUgbWluaW11bSBvZiB0aGF0IGluIG9yZGVyIHRvIGdldCBpdHMgZmlyc3QgZmxpZ2h0XG50ID0gdGltZS50aW1lKClcbnNmX21pbl9hZ2VzID0gc2ZfdG1wW1snVGFpbE51bScsJ0ZsaWdodEFnZSddXS5ncm91cGJ5KCdUYWlsTnVtJyx7J0ZpcnN0RmxpZ2h0JzpnbC5hZ2dyZWdhdGUuTUlOKCdGbGlnaHRBZ2UnKX0pXG5wcmludCAnVG9vayAlLjJmIHNlY29uZHMgdG8gcnVuJyUodGltZS50aW1lKCktdClcbiMgTm93IHRyYW5zZm9ybSB0aGUgRmlyc3RGbGlnaHQgQ29sdW1uIGludG8gdGhlIG9yaWdpbmFsIGRhdGFmcmFtZSBzaXplXG4jIHRvIGRvIHRoYXQgd2UgY2FuIGp1c3QgZG8gYSBqb2luIG9uIGEgZmV3IGNvbHVtbnMgb2Ygb3VyIHNmXG4jIHRoaXMgd2lsbCBzYXZlIHRoZSBmbGlnaHQgYWdlIGFuZCB0aGUgbWluaW11bSBpbiBhIG5ldyBTRnJhbWVcbiV0aW1lIHNmX2Zld2NvbHMgPSBzZl90bXBbWydUYWlsTnVtJywnRmxpZ2h0QWdlJ11dLmpvaW4oc2ZfbWluX2FnZXMsb249J1RhaWxOdW0nLGhvdz0nbGVmdCcpICMgbG9uZyBvcGVyYXRpb25cbiMgYW5kIG5vdyB3ZSBjYW4gc2ltcGx5IHN1YnRyYWN0IHRoZSBuZXcgY2FsY3VsYXRlZCBxdWFudGl0eSBhbmQgYWRkIHRvIHRoZSBvcmlnaW5hbCBTRnJhbWVcbnNmX3RtcFsnQWdlJ10gPSBzZl9mZXdjb2xzWydGbGlnaHRBZ2UnXS1zZl9mZXdjb2xzWydGaXJzdEZsaWdodCddXG5gYGAifQ== -->
+<pre class="python"><code># only use years where the tail number was recorded
+# we can manipulate the SFrame fairly easily in graphlab, so let's do it
+sf_tmp = sf[['TailNum','Year','Month','DepDelay']][sf['Year']&gt;1994]
+# lets try to make a function for getting the age of the plane
+# First lets just save the plane's age in years
+sf_tmp['FlightAge'] = 12*sf_tmp['Year']+sf_tmp['Month']-1
+
+# and take the minimum of that in order to get its first flight
+t = time.time()
+sf_min_ages = sf_tmp[['TailNum','FlightAge']].groupby('TailNum',{'FirstFlight':gl.aggregate.MIN('FlightAge')})
+print 'Took %.2f seconds to run'%(time.time()-t)
+# Now transform the FirstFlight Column into the original dataframe size
+# to do that we can just do a join on a few columns of our sf
+# this will save the flight age and the minimum in a new SFrame
+%time sf_fewcols = sf_tmp[['TailNum','FlightAge']].join(sf_min_ages,on='TailNum',how='left') # long operation
+# and now we can simply subtract the new calculated quantity and add to the original SFrame
+sf_tmp['Age'] = sf_fewcols['FlightAge']-sf_fewcols['FirstFlight']</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="linear-model" class="section level1">
+<h1>4.6 Linear model</h1>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgcHl0aG9uXG4jIG5vdyBsb29rIGF0IHRoZSBhZ2UgYW5kIGRlbGF5IHRpbWUgaW4gdGVybXMgb2YgcmVncmVzc2lvbiAobGlrZSB5b3VyIGJvb2spXG4ldGltZSBsaW5fbW9kZWwgPSBnbC5saW5lYXJfcmVncmVzc2lvbi5jcmVhdGUoc2ZfdG1wWydEZXBEZWxheScsJ0FnZSddLmRyb3BuYSgpLCB0YXJnZXQ9J0RlcERlbGF5JywgZmVhdHVyZXM9WydBZ2UnXSlcblxubGluX21vZGVsWydjb2VmZmljaWVudHMnXVxuYGBgIn0= -->
+<pre class="python"><code># now look at the age and delay time in terms of regression (like your book)
+%time lin_model = gl.linear_regression.create(sf_tmp['DepDelay','Age'].dropna(), target='DepDelay', features=['Age'])
+
+lin_model['coefficients']</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 </div>
 
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIlIgTm90ZWJvb2siDQpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sNCi0tLQ0KDQpCYXNlZCBvbiBFcmljIExhcm9ucyBqdXB5dGVyIG5vdGVib29rLCBhbmQgY29kZSBmcm9tIHRoZSBib29rIHdlJ3JlIHVzaW5nIChhZGQgcmVmZXJlbmNlcyEpDQoNCkRvd25sb2FkIGFuZCBwYXJzZSBkYXRhDQpgYGB7cHl0aG9ufQ0KaW1wb3J0IG9zLCBzeXMNCnBhdGggPSAiRGF0YSINCmlmIG5vdCBvcy5wYXRoLmV4aXN0cyhwYXRoKToNCiAgICBvcy5ta2RpciggcGF0aCwgMDc1NSkNCiAgICANCmltcG9ydCB1cmxsaWIgIyB0aGlzIGlzIHBhcnQgb2YgdGhlIHN0YW5kYXJkIGxpYnJhcnkgZm9yIHB5dGhvbg0KDQp5ZWFyc190b19kb3dubG9hZCA9IHJhbmdlKDE5ODcsMjAwOSkgIyBnZXQgdGhlIHllYXJzIDE5ODcgdGhyb3VnaCAyMDA4DQpiYXNldXJsID0gJ2h0dHA6Ly9zdGF0LWNvbXB1dGluZy5vcmcvZGF0YWV4cG8vMjAwOS8lZC5jc3YuYnoyJyANCg0KZmlsZXMgPSBbXQ0KZm9yIHllYXIgaW4geWVhcnNfdG9fZG93bmxvYWQ6DQogICAgIyBwcmVwYXJlIHN0cmluZ3MNCiAgICB1cmxfb2ZfZGF0YV9maWxlID0gYmFzZXVybCUoeWVhcikgIyBnZXQgdGhlIFVSTCBmb3IgdGhlIGRhdGEgZmlsZQ0KICAgIHNhdmVfYXNfZmlsZW5hbWUgPSAnRGF0YS8lZC5jc3YuYnoyJyUoeWVhcikgIyBzYXZlIGFzIHRoaXMNCiAgICBmaWxlcyArPSBbc2F2ZV9hc19maWxlbmFtZV0gIyBzYXZlIG5hbWUgb2YgdGhlIGNvbXByZXNzZWQgZmlsZQ0KICAgIA0KICAgIGlmIG5vdCBvcy5wYXRoLmlzZmlsZShzYXZlX2FzX2ZpbGVuYW1lKToNCiAgICAgICAgIyBkb3dubG9hZCBmaWxlIGlmIGl0IGRvZXNuJ3QgZXhpc3QNCiAgICAgICAgcHJpbnQgJ0Rvd25sb2FkaW5nICVzIHRvICVzJyUodXJsX29mX2RhdGFfZmlsZSwgc2F2ZV9hc19maWxlbmFtZSkgIyBwcm9ncmVzcyB1cGRhdGUNCiAgICAgICAgdXJsbGliLnVybHJldHJpZXZlKHVybF9vZl9kYXRhX2ZpbGUsIHNhdmVfYXNfZmlsZW5hbWUpICNleGVjdXRlIGRvd25sb2FkDQogICAgZWxzZToNCiAgICAgICAgcHJpbnQgJ0ZpbGUgJXMgYWxyZWFkeSBleGlzdHMuIGRvd25sb2FkaW5nIHNraXBwZWQnJXNhdmVfYXNfZmlsZW5hbWUNCiAgICAgICAgDQogICAgDQpwcmludCBmaWxlcyAgDQoNCmltcG9ydCBiejIgIyB0aGlzIGlzIGFsc28gcGFydCBvZiB0aGUgcHl0aG9uIHN0YW5kYXJkIGxpYnJhcnkNCg0KIyBOb3cgbGV0cyBkZWNvbXByZXNzIGFsbCB0aGUgZmlsZXMNCmZvciBmaWxlbmFtZSBpbiBmaWxlczoNCiAgICAjIGdldCBmaWxlIG5hbWVzDQogICAgZmlsZXBhdGggPSBmaWxlbmFtZQ0KICAgIG5ld2ZpbGVwYXRoID0gZmlsZW5hbWVbOi00XQ0KICAgIGlmIG5vdCBvcy5wYXRoLmlzZmlsZShuZXdmaWxlcGF0aCk6DQogICAgICAgIHByaW50ICdEZWNvbXByZXNzaW5nJywgZmlsZXBhdGgsJ3RvJywgbmV3ZmlsZXBhdGgNCiAgICANCiAgICAgICAgIyBnbyB0aHJvdWdoIHRoZSBkZWNvbXByZXNzZWQgY2h1bmtzIGFuZCB3cml0ZSBvdXQgdG8gYSBkZWNvbXByZXNzZWQgZmlsZQ0KICAgICAgICB3aXRoIG9wZW4obmV3ZmlsZXBhdGgsICd3YicpIGFzIG5ld19maWxlLCBiejIuQloyRmlsZShmaWxlcGF0aCwgJ3JiJykgYXMgZmlsZToNCiAgICAgICAgICAgIGZvciBkYXRhIGluIGl0ZXIobGFtYmRhIDogZmlsZS5yZWFkKDEwMCAqIDEwMjQpLCBiJycpOg0KICAgICAgICAgICAgICAgIG5ld19maWxlLndyaXRlKGRhdGEpDQogICAgZWxzZToNCiAgICAgICAgcHJpbnQgZmlsZXBhdGgsJ2FscmVhZHkgaXMgdW5jb21wcmVzc2VkLicNCiAgICAgICAgDQpgYGANCg0KDQoNCiMjIDIgLSBMb2FkIGZpbGVzIGludG8gbWVtb3J5DQpgYGB7cHl0aG9ufQ0KaW1wb3J0IHBhbmRhcyBhcyBwZA0KaW1wb3J0IG51bXB5IGFzIG5wDQppbXBvcnQgc3lzDQoNCnRvdGFsX2xlbmd0aD0wDQpmb3IgeWVhciBpbiBbMTk4NywgMTk4OF06DQogICAgY3N2ZmlsZSA9ICdEYXRhLyVkLmNzdiclKHllYXIpDQogICAgcHJpbnQgJ2xvYWRpbmcnLCBjc3ZmaWxlDQogICAgc3lzLnN0ZG91dC5mbHVzaCgpDQogICAgDQogICAgZGY9cGQucmVhZF9jc3YoY3N2ZmlsZSkNCiAgICANCiAgICB0b3RhbF9sZW5ndGgrPWxlbihkZikNCiAgICANCnByaW50ICdBbnN3ZXIgZnJvbSBweXRob24nLCB0b3RhbF9sZW5ndGgNCmRmLmhlYWQoKQ0KYGBgDQoNCg0KRG8gc2FtZSBpbXBvcnQgYXMgYWJvdmUgcHl0aG9uLCBidXQgaW4gUiwgZm9yIGNvbXBhcmlzb24NCmBgYHtyfQ0KIyBuZWVkIHRoaXMsIHNpbmNlIHdvcmtpbmcgZGlyZWN0b3J5IGlzIGRpZmZlcmVudCBiZXR3ZWVuIHB5dGhvbiBjb2RlIGFuZCByDQpzZXR3ZCgiQzovVXNlcnMvcmFobmwvRG9jdW1lbnRzL0RhdGEiKQ0KDQp0b3RhbF9sZW5ndGggPC0gMA0KZm9yKHllYXIgaW4gMTk4NzoxOTg4KXsNCiAgICBmaWxlbmFtZSA9IHBhc3RlKHllYXIsIi5jc3YiLHNlcD0iIikNCiAgICB4PC1yZWFkLmNzdihmaWxlbmFtZSkNCiAgICB0b3RhbF9sZW5ndGggPC0gdG90YWxfbGVuZ3RoICsgbnJvdyh4KQ0KfQ0KcHJpbnQodG90YWxfbGVuZ3RoKQ0KYGBgDQoNCiMjIDIuMSAtIGRhdGEgcHJlcHJvY2Vzc2luZw0KYGBge3B5dGhvbn0NCiMgSW4gdGhpcyBkYXRhLCB0aGVyZSBhcmUgbXVsdGlwbGUgdmFyaWFibGVzIHRoYXQgYXJlIG9iamVjdHMNCiMgdGhlc2UgbmVlZCB0byBiZSBhcHByb3ByaWF0ZWx5IGNvbnZlcnRlZCB0byBudW1iZXJzIChpbnRlZ2VycykgDQojIFRvIGRvIHRoaXMsIHdlIG11c3Qga25vdyB0aGUgdW5pcWUgdmFsdWVzIGluIGVhY2ggb2YgdGhlIGNvbHVtbnMsIGxldCdzIGRvIHRoaXMgZmlyc3QNCmltcG9ydCBwYW5kYXMgYXMgcGQNCmltcG9ydCBudW1weSBhcyBucA0KaW1wb3J0IHN5cw0KaW1wb3J0IHRpbWUNCmltcG9ydCBjUGlja2xlIGFzIHBpY2tsZQ0KDQp1bmlxdWVfdmFsdWVzID0ge30gIyBjcmVhdGUgYW4gZW1wdHkgZGljdGlvbmFyeSBvZiB0aGUgY29sdW1uIG5hbWUgYW4gdGhlIHVuaXF1ZSB2YWx1ZXMgaW4gaXQNCmZvciB5ZWFyIGluIHJhbmdlKDE5ODcsMjAwOSk6DQogICAgdCA9IHRpbWUudGltZSgpDQogICAgIyBnZXQgZmlsZSBuYW1lIG9mIHRoZSBjc3YNCiAgICBjc3ZmaWxlID0gJ0RhdGEvJWQuY3N2JyUoeWVhcikNCiAgICBwcmludCAnbG9hZGluZycsY3N2ZmlsZSwNCiAgICBzeXMuc3Rkb3V0LmZsdXNoKCkNCiAgICANCiAgICAjIHJlYWQgdGhlIGZpbGUNCiAgICBkZiA9IHBkLnJlYWRfY3N2KGNzdmZpbGUsdXNlY29scz1bJ09yaWdpbicsICdEZXN0JywgJ1VuaXF1ZUNhcnJpZXInLCdUYWlsTnVtJywnQ2FuY2VsbGF0aW9uQ29kZSddLA0KICAgICAgICBkdHlwZT17J1RhaWxOdW0nOiBzdHJ9KSANCiAgICAjZGYgPSBkZi5zZWxlY3RfZHR5cGVzKGV4Y2x1ZGU9WydmbG9hdDY0JywnaW50NjQnXSkgIyBncmFiIG9ubHkgdGhlIG5vbi1udW1lcmljIGRhdGENCiAgICANCiAgICBwcmludCAnLi4uZmluZGluZyB1bmlxdWUgdmFsdWVzJywNCiAgICBzeXMuc3Rkb3V0LmZsdXNoKCkNCiAgICANCiAgICBmb3IgY29sIGluIGRmLmNvbHVtbnM6DQogICAgICAgICMgY2hlY2sgdG8gc2VlIGlmIHdlIGhhdmUgc2VlbiB0aGlzIGNvbHVtbiBiZWZvcmUNCiAgICAgICAgcyA9IHNldChkZltjb2xdLnZhbHVlcy5hc3R5cGUobnAuc3RyKSkNCiAgICAgICAgaWYgY29sIG5vdCBpbiB1bmlxdWVfdmFsdWVzOg0KICAgICAgICAgICAgIyBpZiBub3QsIHRoZW4gY3JlYXRlIGEga2V5IHdpdGggdGhlIHVuaXF1ZSB2YWx1ZXMgZm9yIHRoYXQgY29sdW1uIGluIGl0DQogICAgICAgICAgICB1bmlxdWVfdmFsdWVzW2NvbF0gPSBzDQogICAgICAgIGVsc2U6DQogICAgICAgICAgICAjIG90aGVyd2lzZSBtYWtlIHN1cmUgdGhhdCB0aGUgcmVtYWluaW5nIGNvbHVtbnMgYXJlIHVuaXF1ZQ0KICAgICAgICAgICAgdW5pcXVlX3ZhbHVlc1tjb2xdIHw9IHMNCiAgICAgICAgICAgIA0KICAgIHByaW50ICcuLi5maW5pc2hlZCwgJS4yZiBzZWNvbmRzJyUodGltZS50aW1lKCktdCkNCiAgICBzeXMuc3Rkb3V0LmZsdXNoKCkNCiAgICBkZWwgZGYNCg0KIyBTYXZlIG91dCB0aGUgZGljdGlvbmFyeSBmb3IgbGF0ZXIgdXNlDQpwaWNrbGUuZHVtcCggdW5pcXVlX3ZhbHVlcywgb3BlbiggIkRhdGEvdW5pcXVlX21hcHBpbmcucCIsICJ3YiIgKSApDQpgYGANCg0KYGBge3B5dGhvbn0NCnByaW50IHVuaXF1ZV92YWx1ZXMua2V5cygpDQpwcmludCAnT25lIGV4YW1wbGU6Jyx1bmlxdWVfdmFsdWVzWydDYW5jZWxsYXRpb25Db2RlJ10NCmBgYA0KDQoyIC0gbG9hZCBkYXRhIGludG8gbWVtb3J5DQoNCg0KYGBge3J9DQp0b3RhbF9sZW5ndGggPC0gMA0KZm9yKHllYXIgaW4gMTk4NzoxOTg4KXsNCiAgICBmaWxlbmFtZSA9IHBhc3RlKCJEYXRhLyIseWVhciwiLmNzdiIsc2VwPSIiKQ0KICAgIHg8LXJlYWQuY3N2KGZpbGVuYW1lKQ0KICAgIHRvdGFsX2xlbmd0aCA8LSB0b3RhbF9sZW5ndGggKyBucm93KHgpDQp9DQpwcmludCh0b3RhbF9sZW5ndGgpDQpgYGANCjIuMSBQcmVwcm9jZXNzaW5nIERhdGEgaW4gQ2h1bmtzDQpgYGB7cHl0aG9ufQ0KIyBJbiB0aGlzIGRhdGEsIHRoZXJlIGFyZSBtdWx0aXBsZSB2YXJpYWJsZXMgdGhhdCBhcmUgb2JqZWN0cw0KIyB0aGVzZSBuZWVkIHRvIGJlIGFwcHJvcHJpYXRlbHkgY29udmVydGVkIHRvIG51bWJlcnMgKGludGVnZXJzKSANCiMgVG8gZG8gdGhpcywgd2UgbXVzdCBrbm93IHRoZSB1bmlxZSB2YWx1ZXMgaW4gZWFjaCBvZiB0aGUgY29sdW1ucywgbGV0J3MgZG8gdGhpcyBmaXJzdA0KaW1wb3J0IHBhbmRhcyBhcyBwZA0KaW1wb3J0IG51bXB5IGFzIG5wDQppbXBvcnQgc3lzDQppbXBvcnQgdGltZQ0KaW1wb3J0IF9waWNrbGUgYXMgcGlja2xlDQoNCnVuaXF1ZV92YWx1ZXMgPSB7fSAjIGNyZWF0ZSBhbiBlbXB0eSBkaWN0aW9uYXJ5IG9mIHRoZSBjb2x1bW4gbmFtZSBhbiB0aGUgdW5pcXVlIHZhbHVlcyBpbiBpdA0KZm9yIHllYXIgaW4gcmFuZ2UoMTk4NywyMDA5KToNCiAgICB0ID0gdGltZS50aW1lKCkNCiAgICAjIGdldCBmaWxlIG5hbWUgb2YgdGhlIGNzdg0KICAgIGNzdmZpbGUgPSAnRGF0YS8lZC5jc3YnJSh5ZWFyKQ0KICAgIHByaW50ICgnbG9hZGluZycsY3N2ZmlsZSwgKQ0KICAgIHN5cy5zdGRvdXQuZmx1c2goKQ0KICAgIA0KICAgICMgcmVhZCB0aGUgZmlsZQ0KICAgIGRmID0gcGQucmVhZF9jc3YoY3N2ZmlsZSx1c2Vjb2xzPVsnT3JpZ2luJywgJ0Rlc3QnLCAgICdVbmlxdWVDYXJyaWVyJywnVGFpbE51bScsJ0NhbmNlbGxhdGlvbkNvZGUnXSkgDQogICAgI2RmID0gZGYuc2VsZWN0X2R0eXBlcyhleGNsdWRlPVsnZmxvYXQ2NCcsJ2ludDY0J10pICMgZ3JhYiBvbmx5IHRoZSBub24tbnVtZXJpYyBkYXRhDQogICAgDQogICAgcHJpbnQgKCcuLi5maW5kaW5nIHVuaXF1ZSB2YWx1ZXMnLHN5cy5zdGRvdXQuZmx1c2goKSkNCiAgICANCiAgICBmb3IgY29sIGluIGRmLmNvbHVtbnM6DQogICAgICAgICMgY2hlY2sgdG8gc2VlIGlmIHdlIGhhdmUgc2VlbiB0aGlzIGNvbHVtbiBiZWZvcmUNCiAgICAgICAgcyA9IHNldChkZltjb2xdLnZhbHVlcy5hc3R5cGUobnAuc3RyKSkNCiAgICAgICAgaWYgY29sIG5vdCBpbiB1bmlxdWVfdmFsdWVzOg0KICAgICAgICAgICAgIyBpZiBub3QsIHRoZW4gY3JlYXRlIGEga2V5IHdpdGggdGhlIHVuaXF1ZSB2YWx1ZXMgZm9yIHRoYXQgY29sdW1uIGluIGl0DQogICAgICAgICAgICB1bmlxdWVfdmFsdWVzW2NvbF0gPSBzDQogICAgICAgIGVsc2U6DQogICAgICAgICAgICAjIG90aGVyd2lzZSBtYWtlIHN1cmUgdGhhdCB0aGUgcmVtYWluaW5nIGNvbHVtbnMgYXJlIHVuaXF1ZQ0KICAgICAgICAgICAgdW5pcXVlX3ZhbHVlc1tjb2xdIHw9IHMNCiAgICAgICAgICAgIA0KICAgIHByaW50KCAnLi4uZmluaXNoZWQsICUuMmYgc2Vjb25kcyclKHRpbWUudGltZSgpLXQpKQ0KICAgIHN5cy5zdGRvdXQuZmx1c2goKQ0KICAgIGRlbCBkZg0KDQojIFNhdmUgb3V0IHRoZSBkaWN0aW9uYXJ5IGZvciBsYXRlciB1c2UNCnBpY2tsZS5kdW1wKCB1bmlxdWVfdmFsdWVzLCBvcGVuKCAiRGF0YS91bmlxdWVfbWFwcGluZy5wIiwgIndiIiApICkNCmBgYA0KDQo=</div>
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIlIgTm90ZWJvb2siDQpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sNCi0tLQ0KDQpCYXNlZCBvbiBFcmljIExhcm9ucyBqdXB5dGVyIG5vdGVib29rLCBhbmQgY29kZSBmcm9tIHRoZSBib29rIHdlJ3JlIHVzaW5nIChhZGQgcmVmZXJlbmNlcyEpDQoNCkRvd25sb2FkIGFuZCBwYXJzZSBkYXRhDQpgYGB7cHl0aG9ufQ0KaW1wb3J0IG9zLCBzeXMNCnBhdGggPSAiRGF0YSINCmlmIG5vdCBvcy5wYXRoLmV4aXN0cyhwYXRoKToNCiAgICBvcy5ta2RpciggcGF0aCwgMDc1NSkNCiAgICANCmltcG9ydCB1cmxsaWIgIyB0aGlzIGlzIHBhcnQgb2YgdGhlIHN0YW5kYXJkIGxpYnJhcnkgZm9yIHB5dGhvbg0KDQp5ZWFyc190b19kb3dubG9hZCA9IHJhbmdlKDE5ODcsMjAwOSkgIyBnZXQgdGhlIHllYXJzIDE5ODcgdGhyb3VnaCAyMDA4DQpiYXNldXJsID0gJ2h0dHA6Ly9zdGF0LWNvbXB1dGluZy5vcmcvZGF0YWV4cG8vMjAwOS8lZC5jc3YuYnoyJyANCg0KZmlsZXMgPSBbXQ0KZm9yIHllYXIgaW4geWVhcnNfdG9fZG93bmxvYWQ6DQogICAgIyBwcmVwYXJlIHN0cmluZ3MNCiAgICB1cmxfb2ZfZGF0YV9maWxlID0gYmFzZXVybCUoeWVhcikgIyBnZXQgdGhlIFVSTCBmb3IgdGhlIGRhdGEgZmlsZQ0KICAgIHNhdmVfYXNfZmlsZW5hbWUgPSAnRGF0YS8lZC5jc3YuYnoyJyUoeWVhcikgIyBzYXZlIGFzIHRoaXMNCiAgICBmaWxlcyArPSBbc2F2ZV9hc19maWxlbmFtZV0gIyBzYXZlIG5hbWUgb2YgdGhlIGNvbXByZXNzZWQgZmlsZQ0KICAgIA0KICAgIGlmIG5vdCBvcy5wYXRoLmlzZmlsZShzYXZlX2FzX2ZpbGVuYW1lKToNCiAgICAgICAgIyBkb3dubG9hZCBmaWxlIGlmIGl0IGRvZXNuJ3QgZXhpc3QNCiAgICAgICAgcHJpbnQgJ0Rvd25sb2FkaW5nICVzIHRvICVzJyUodXJsX29mX2RhdGFfZmlsZSwgc2F2ZV9hc19maWxlbmFtZSkgIyBwcm9ncmVzcyB1cGRhdGUNCiAgICAgICAgdXJsbGliLnVybHJldHJpZXZlKHVybF9vZl9kYXRhX2ZpbGUsIHNhdmVfYXNfZmlsZW5hbWUpICNleGVjdXRlIGRvd25sb2FkDQogICAgZWxzZToNCiAgICAgICAgcHJpbnQgJ0ZpbGUgJXMgYWxyZWFkeSBleGlzdHMuIGRvd25sb2FkaW5nIHNraXBwZWQnJXNhdmVfYXNfZmlsZW5hbWUNCiAgICAgICAgDQogICAgDQpwcmludCBmaWxlcyAgDQoNCmltcG9ydCBiejIgIyB0aGlzIGlzIGFsc28gcGFydCBvZiB0aGUgcHl0aG9uIHN0YW5kYXJkIGxpYnJhcnkNCg0KIyBOb3cgbGV0cyBkZWNvbXByZXNzIGFsbCB0aGUgZmlsZXMNCmZvciBmaWxlbmFtZSBpbiBmaWxlczoNCiAgICAjIGdldCBmaWxlIG5hbWVzDQogICAgZmlsZXBhdGggPSBmaWxlbmFtZQ0KICAgIG5ld2ZpbGVwYXRoID0gZmlsZW5hbWVbOi00XQ0KICAgIGlmIG5vdCBvcy5wYXRoLmlzZmlsZShuZXdmaWxlcGF0aCk6DQogICAgICAgIHByaW50ICdEZWNvbXByZXNzaW5nJywgZmlsZXBhdGgsJ3RvJywgbmV3ZmlsZXBhdGgNCiAgICANCiAgICAgICAgIyBnbyB0aHJvdWdoIHRoZSBkZWNvbXByZXNzZWQgY2h1bmtzIGFuZCB3cml0ZSBvdXQgdG8gYSBkZWNvbXByZXNzZWQgZmlsZQ0KICAgICAgICB3aXRoIG9wZW4obmV3ZmlsZXBhdGgsICd3YicpIGFzIG5ld19maWxlLCBiejIuQloyRmlsZShmaWxlcGF0aCwgJ3JiJykgYXMgZmlsZToNCiAgICAgICAgICAgIGZvciBkYXRhIGluIGl0ZXIobGFtYmRhIDogZmlsZS5yZWFkKDEwMCAqIDEwMjQpLCBiJycpOg0KICAgICAgICAgICAgICAgIG5ld19maWxlLndyaXRlKGRhdGEpDQogICAgZWxzZToNCiAgICAgICAgcHJpbnQgZmlsZXBhdGgsJ2FscmVhZHkgaXMgdW5jb21wcmVzc2VkLicNCiAgICAgICAgDQpgYGANCg0KDQoNCiMjIDIgLSBMb2FkIGZpbGVzIGludG8gbWVtb3J5DQpgYGB7cHl0aG9ufQ0KaW1wb3J0IHBhbmRhcyBhcyBwZA0KaW1wb3J0IG51bXB5IGFzIG5wDQppbXBvcnQgc3lzDQoNCnRvdGFsX2xlbmd0aD0wDQpmb3IgeWVhciBpbiBbMTk4NywgMTk4OF06DQogICAgY3N2ZmlsZSA9ICdEYXRhLyVkLmNzdiclKHllYXIpDQogICAgcHJpbnQgJ2xvYWRpbmcnLCBjc3ZmaWxlDQogICAgc3lzLnN0ZG91dC5mbHVzaCgpDQogICAgDQogICAgZGY9cGQucmVhZF9jc3YoY3N2ZmlsZSkNCiAgICANCiAgICB0b3RhbF9sZW5ndGgrPWxlbihkZikNCiAgICANCnByaW50ICdBbnN3ZXIgZnJvbSBweXRob24nLCB0b3RhbF9sZW5ndGgNCmRmLmhlYWQoKQ0KYGBgDQoNCg0KRG8gc2FtZSBpbXBvcnQgYXMgYWJvdmUgcHl0aG9uLCBidXQgaW4gUiwgZm9yIGNvbXBhcmlzb24NCmBgYHtyfQ0KIyBuZWVkIHRoaXMsIHNpbmNlIHdvcmtpbmcgZGlyZWN0b3J5IGlzIGRpZmZlcmVudCBiZXR3ZWVuIHB5dGhvbiBjb2RlIGFuZCByDQpzZXR3ZCgiQzovVXNlcnMvcmFobmwvRG9jdW1lbnRzL0RhdGEiKQ0KDQp0b3RhbF9sZW5ndGggPC0gMA0KZm9yKHllYXIgaW4gMTk4NzoxOTg4KXsNCiAgICBmaWxlbmFtZSA9IHBhc3RlKHllYXIsIi5jc3YiLHNlcD0iIikNCiAgICB4PC1yZWFkLmNzdihmaWxlbmFtZSkNCiAgICB0b3RhbF9sZW5ndGggPC0gdG90YWxfbGVuZ3RoICsgbnJvdyh4KQ0KfQ0KcHJpbnQodG90YWxfbGVuZ3RoKQ0KYGBgDQoNCiMjIDIuMSAtIGRhdGEgcHJlcHJvY2Vzc2luZw0KYGBge3B5dGhvbn0NCiMgSW4gdGhpcyBkYXRhLCB0aGVyZSBhcmUgbXVsdGlwbGUgdmFyaWFibGVzIHRoYXQgYXJlIG9iamVjdHMNCiMgdGhlc2UgbmVlZCB0byBiZSBhcHByb3ByaWF0ZWx5IGNvbnZlcnRlZCB0byBudW1iZXJzIChpbnRlZ2VycykgDQojIFRvIGRvIHRoaXMsIHdlIG11c3Qga25vdyB0aGUgdW5pcWUgdmFsdWVzIGluIGVhY2ggb2YgdGhlIGNvbHVtbnMsIGxldCdzIGRvIHRoaXMgZmlyc3QNCmltcG9ydCBwYW5kYXMgYXMgcGQNCmltcG9ydCBudW1weSBhcyBucA0KaW1wb3J0IHN5cw0KaW1wb3J0IHRpbWUNCmltcG9ydCBjUGlja2xlIGFzIHBpY2tsZQ0KDQp1bmlxdWVfdmFsdWVzID0ge30gIyBjcmVhdGUgYW4gZW1wdHkgZGljdGlvbmFyeSBvZiB0aGUgY29sdW1uIG5hbWUgYW4gdGhlIHVuaXF1ZSB2YWx1ZXMgaW4gaXQNCmZvciB5ZWFyIGluIHJhbmdlKDE5ODcsMjAwOSk6DQogICAgdCA9IHRpbWUudGltZSgpDQogICAgIyBnZXQgZmlsZSBuYW1lIG9mIHRoZSBjc3YNCiAgICBjc3ZmaWxlID0gJ0RhdGEvJWQuY3N2JyUoeWVhcikNCiAgICBwcmludCAnbG9hZGluZycsY3N2ZmlsZSwNCiAgICBzeXMuc3Rkb3V0LmZsdXNoKCkNCiAgICANCiAgICAjIHJlYWQgdGhlIGZpbGUNCiAgICBkZiA9IHBkLnJlYWRfY3N2KGNzdmZpbGUsdXNlY29scz1bJ09yaWdpbicsICdEZXN0JywgJ1VuaXF1ZUNhcnJpZXInLCdUYWlsTnVtJywnQ2FuY2VsbGF0aW9uQ29kZSddLA0KICAgICAgICBkdHlwZT17J0NhbmNlbGxhdGlvbkNvZGUnOnN0cn0pDQogICAgICAgICMnVGFpbE51bSc6IHN0ciwnQ2FuY2VsbGVkJzppbnQsICdPcmlnaW4nOiBzdHIsICMnRGVzdCc6c3RyLCdVbmlxdWVDYXJyaWVyJzpzdHIsJ1RhaWxOdW0nOnN0ciwnQ2FuY2VsbGF0aW9uQ29kZSc6c3RyfSkgDQogICAgI2RmID0gZGYuc2VsZWN0X2R0eXBlcyhleGNsdWRlPVsnZmxvYXQ2NCcsJ2ludDY0J10pICMgZ3JhYiBvbmx5IHRoZSBub24tbnVtZXJpYyBkYXRhDQogICANCiAgICBwcmludCAnLi4uZmluZGluZyB1bmlxdWUgdmFsdWVzJywNCiAgICBzeXMuc3Rkb3V0LmZsdXNoKCkNCiAgICANCiAgICBmb3IgY29sIGluIGRmLmNvbHVtbnM6DQogICAgICAgICMgY2hlY2sgdG8gc2VlIGlmIHdlIGhhdmUgc2VlbiB0aGlzIGNvbHVtbiBiZWZvcmUNCiAgICAgICAgcyA9IHNldChkZltjb2xdLnZhbHVlcy5hc3R5cGUobnAuc3RyKSkNCiAgICAgICAgaWYgY29sIG5vdCBpbiB1bmlxdWVfdmFsdWVzOg0KICAgICAgICAgICAgIyBpZiBub3QsIHRoZW4gY3JlYXRlIGEga2V5IHdpdGggdGhlIHVuaXF1ZSB2YWx1ZXMgZm9yIHRoYXQgY29sdW1uIGluIGl0DQogICAgICAgICAgICB1bmlxdWVfdmFsdWVzW2NvbF0gPSBzDQogICAgICAgIGVsc2U6DQogICAgICAgICAgICAjIG90aGVyd2lzZSBtYWtlIHN1cmUgdGhhdCB0aGUgcmVtYWluaW5nIGNvbHVtbnMgYXJlIHVuaXF1ZQ0KICAgICAgICAgICAgdW5pcXVlX3ZhbHVlc1tjb2xdIHw9IHMNCiAgICAgICAgICAgIA0KICAgIHByaW50ICcuLi5maW5pc2hlZCwgJS4yZiBzZWNvbmRzJyUodGltZS50aW1lKCktdCkNCiAgICBzeXMuc3Rkb3V0LmZsdXNoKCkNCiAgICBkZWwgZGYNCg0KIyBTYXZlIG91dCB0aGUgZGljdGlvbmFyeSBmb3IgbGF0ZXIgdXNlDQpwaWNrbGUuZHVtcCggdW5pcXVlX3ZhbHVlcywgb3BlbiggIkRhdGEvdW5pcXVlX21hcHBpbmcucCIsICJ3YiIgKSApDQpgYGANCg0KYGBge3B5dGhvbn0NCnByaW50IHVuaXF1ZV92YWx1ZXMua2V5cygpDQpwcmludCAnT25lIGV4YW1wbGU6Jyx1bmlxdWVfdmFsdWVzWydDYW5jZWxsYXRpb25Db2RlJ10NCmBgYA0KDQoyIC0gbG9hZCBkYXRhIGludG8gbWVtb3J5DQoNCmltcG9ydCBwYW5kYXMgYXMgcGQNCmltcG9ydCBudW1weSBhcyBucA0KaW1wb3J0IHN5cw0KaW1wb3J0IHRpbWUNCmRlZiBmYXN0X251bXB5X3JlcGxhY2UobnBfdmVjdG9yLHJlcGxhY2Vfc2V0KToNCiAgICAjIHlvdSBjYW4gbG9vayBhdCB0aGlzIGZ1bmN0aW9uIGF0IHlvdXIgbGVpc3VyZSwgYnV0IGVzc2VudGlhbGx5IHdlIHVzZSBmYXN0IHNldCANCiAgICAjIGNvbXBhcmlzb24gdG8gdHJ5IGFuZCBzcGVlZCB1cCB0aGUgYW5hbHlzaXMNCiAgICByZXBsYWNlX3NldCA9IG5wLmFycmF5KGxpc3QocmVwbGFjZV9zZXQpKSAjIGdldCAicG9zc2libGUgdmFsdWVzIiBhcyBhIG51bXB5IGFycmF5DQogICAgbiA9IG5wLm5kYXJyYXkobnBfdmVjdG9yLnNoYXBlKS5hc3R5cGUobnAuZmxvYXQ2NCkgIyBmaWxsIGluIHRoaXMgbWF0cml4DQogICAgDQogICAgdmVjdG9yX2FzX3NldCxpZHhfYmFjayA9IG5wLnVuaXF1ZShucF92ZWN0b3IscmV0dXJuX2ludmVyc2U9VHJ1ZSkgIyBnZXQgdGhlIHVuaXF1ZSBpbmRpY2VzIGFuZCBsb2NhdGlvbnMNCiAgICANCiAgICAjIG5vdyBsb29wIHRocm91Z2ggdGhlIHVuaXF1ZSB2YWx1ZXMgZm9yIHRoaXMgZGF0YXNldA0KICAgIGZvciBpZHgsdmFsIGluIGVudW1lcmF0ZSh2ZWN0b3JfYXNfc2V0KToNCiAgICAgICAgIyBmaW5kIHdoYXQgbnVtYmVyIHRoaXMgc2hvdWxkIGJlIChsaWtlIGEgaGFzaCkNCiAgICAgICAgY2F0ZWdvcnlfbnVtID0gbnAubm9uemVybyhyZXBsYWNlX3NldCA9PSB2YWwpWzBdWzBdDQogICAgICAgIG5baWR4X2JhY2s9PWlkeF0gPSBjYXRlZ29yeV9udW0gIyBzZXQgdGhlIHZhbHVlcyBhcyB0aGlzIGNhdGVnb3J5LCB2ZWN0b3JpemUgZm9yIHNwZWVkDQogICAgICAgIA0KICAgIHJldHVybiBuLmFzdHlwZShucC5mbG9hdDY0KQ0KICAgIA0KZmlsZUhhbmRsZSA9IG9wZW4oJ0RhdGEvQWlybGluZURhdGFBbGwuY3N2JywgJ3cnKSAjIG9wZW4gYW5kIHJlcGxhY2UgaWYgbmVlZGVkDQp5ZWFycyA9IHJhbmdlKDE5ODcsMjAwOSkNCmZvciB5ZWFyIGluIHllYXJzOg0KICAgIHQgPSB0aW1lLnRpbWUoKQ0KICAgIA0KICAgICMgZ2V0IGZpbGUgbmFtZSBvZiB0aGUgY3N2DQogICAgY3N2ZmlsZSA9ICdEYXRhLyVkLmNzdiclKHllYXIpDQogICAgcHJpbnQgJ1J1bm5pbmcuLi4nLGNzdmZpbGUsDQogICAgc3lzLnN0ZG91dC5mbHVzaCgpDQogICAgDQogICAgIyByZWFkIHRoZSBmaWxlDQogICAgZGYgPSBwZC5yZWFkX2Nzdihjc3ZmaWxlKSANCiAgICANCiAgICBwcmludCAnbG9hZGVkLCAuLi5yZXBsYWNpbmcgdmFsdWVzJyxzeXMuc3Rkb3V0LmZsdXNoKCkNCiAgICAgICAgDQogICAgIyBub3cgcmVwbGFjZSB0aGUgbWF0Y2hpbmcgY29sdW1uYXIgZGF0YSB3aXRoIHRoZSBwcm9wZXIgbnVtYmVyIGNhdGVnb3J5DQogICAgZm9yIGtleSBpbiB1bmlxdWVfdmFsdWVzLmtleXMoKToNCiAgICAgICAgaWYga2V5IGluIGRmOg0KICAgICAgICAgICAgcHJpbnQga2V5WzA6NF0sDQogICAgICAgICAgICBzeXMuc3Rkb3V0LmZsdXNoKCkNCiAgICAgICAgICAgIHRtcCA9IGRmW2tleV0udmFsdWVzLmFzdHlwZShucC5zdHIpDQogICAgICAgICAgICBkZltrZXldID0gZmFzdF9udW1weV9yZXBsYWNlKHRtcCx1bmlxdWVfdmFsdWVzW2tleV0pDQogICAgIA0KICAgIHByaW50ICcuLi4nLHN5cy5zdGRvdXQuZmx1c2goKQ0KICAgIA0KICAgIGZvciBjb2wgaW4gZGY6DQogICAgICAgIGRmW2NvbF0gPSBucC5yb3VuZChkZltjb2xdLmFzdHlwZShucC5mbG9hdDY0KSkgIyB1c2UgZmxvYXRzIHRvIGtlZXAgdGhlIG5hbidzIGlubGluZSB3aXRoIG51bXB5IHJlcHJlc2VudGF0aW9uDQogICAgDQogICAgcHJpbnQgJ3dyaXRpbmcnLHN5cy5zdGRvdXQuZmx1c2goKQ0KICAgIA0KICAgICMgdGhlc2UgbGluZXMgbWFrZSBvbmUgbGFyZ2UgZmlsZSB3aXRoIHRoZSBudW1lcmljIGRhdGENCiAgICAjIGl0IGFsc28gc29sdmVzIGEgcHJvYmxlbSB3aXRoIHBhbmRhcyBjbG9zaW5nIHRoZSBmaWxlIHRoYXQgdGFrZXMgYW4gaW5vcmRpbmF0ZSBhbW91bnQgb2YgdGltZQ0KICAgICMgTk9URTogdXNpbmcgYmluYXJ5IGhlcmUgd291bGQgYmUgYSBodWdlIHNwZWVkdXAsIGJ1dCBJIGFtIG5vdCBzdXJlIGFib3V0IHRoZSBiaW5hcnkgc3RydWN0dXJlIG9mIHRoZSANCiAgICAjIGJhY2tpbmcgZmlsZSBmb3IgYmlnbWF0cml4LCBzbyB3ZSBzdGljayB3aXRoIENTVg0KICAgICMgVE9ETzogZmluZCBvdXQgaWYgdGhlIGJhY2tpbmcgZmlsZSBpcyBqdXN0IGEgZHVtcCBvZiB0aGUgYyBzdHJ1Y3QgdG8gZmlsZQ0KICAgIGlmIHllYXI9PXllYXJzWzBdOg0KICAgICAgICBkZi50b19jc3YoZmlsZUhhbmRsZSxpbmRleD1GYWxzZSwgaW5kZXhfbGFiZWw9RmFsc2UsIG5hX3JlcD0iTkEiLGZsb2F0X2Zvcm1hdD0nJS4wZicpDQogICAgZWxzZToNCiAgICAgICAgZGYudG9fY3N2KGZpbGVIYW5kbGUsIG1vZGU9J2EnLCBoZWFkZXI9RmFsc2UsIGluZGV4PUZhbHNlLCBpbmRleF9sYWJlbD1GYWxzZSwgIG5hX3JlcD0iTkEiLCBmbG9hdF9mb3JtYXQ9JyUuMGYnKQ0KICAgICAgICANCiAgICBwcmludCAnLCAlLjJmIHNlYy4nJSh0aW1lLnRpbWUoKS10KQ0KICAgIGRlbCBkZg0KDQpwcmludCAnY2xvc2luZyBmaWxlJywNCnN5cy5zdGRvdXQuZmx1c2goKQ0KDQpmaWxlSGFuZGxlLmNsb3NlKCkNCnByaW50ICcuLi5Eb25lJw0KYGBgDQoNCg0KYGBge3J9DQoNCmBgYA0KUmVwbGFjaW5nIHVuaXF1ZSB2YWx1ZXMgYXMgaW50ZWdlciBhbmQgcmVzYXZpbmcgZGF0YWZyYW1lLg0KQW5kIGNyZWF0aW5nIG9uZSBsYXJnZSBmaWxlIEFpcmxpbmVEYXRhQWxsIHdpdGggZGF0YSBmb3IgYWxsIHllYXJzDQoNCmBgYHtweXRob259DQojIG5vdyBsZXRzIHRha2UgYSBsb29rIHRvIHNlZSB3aGF0IGhhcyBhY3R1YWxseSBjaGFuZ2VkIGluIHRoZSBmaWxlDQojIGxldCdzIGxvYWQgdGhlIGhlYWQgb2YgMTk4NyBhbmQgdGhlIGJpZyBDU1YgZmlsZSB0byBzZWUgaG93IHRoZXkgY29tcGFyZQ0KcHJpbnQgJ05ldyBGaWxlIEZvcm1hdDonDQohaGVhZCBEYXRhL0FpcmxpbmVEYXRhQWxsLmNzdg0KcHJpbnQgJycNCnByaW50ICdPbGQgRmlsZSBGb3JtYXQnDQohaGVhZCBEYXRhLzE5ODcuY3N2DQoNCg0KIyBsZXQncyBub3cgbG9vayBhdCB0aGUgdGFpbCBvZiBvdXIgYmlnIGRhdGFzZXQgYW5kIHRoZSB0YWlsIG9mIHRoZSAyMDA4IGZpbGUNCiMgZG8gdGhleSBjb21wYXJlIG5pY2VseT8NCnByaW50ICdOZXcgRmlsZSBGb3JtYXQ6Jw0KIXRhaWwgRGF0YS9BaXJsaW5lRGF0YUFsbC5jc3YNCnByaW50ICcnDQpwcmludCAnT2xkIEZpbGUgRm9ybWF0OicNCiF0YWlsIERhdGEvMjAwOC5jc3YNCg0KDQohbHMgLWFsbCBEYXRhLypBbGwuY3N2IA0KYGBgDQoNCiMjIDQgSGFuZGxpbmcgb3V0IG9mIGNvcmUgbWVtb3J5IGFuZCBhbmFseXppbmcgZGF0YSB1c2luZyBHcmFwaGxhYiBDcmVhdGUNCiMgNC4xIExvYWRpbmcgMTIgZ2IgZGF0YQ0KYGBge3B5dGhvbn0NCmltcG9ydCBncmFwaGxhYiBhcyBnbA0Kc2YgPSBnbC5TRnJhbWUoJ0RhdGEvQWlybGluZURhdGFBbGwuY3N2JykNCnNmLnNoYXBlDQpgYGANCg0KIyA0LjIgUHJlcHJvY2VzczogQ29uY2F0ZW5hdGUgYW5kIHNhdmUgY29tcHJlc3NlZCBiaW5hcnkgdmVyc2lvbiB0byBwZXJmb3JtIG9wZXJhdGlvbnMNCmBgYHtweXRob259DQpkZWwgc2YgIyBnZXQgcmlkIG9mIHRoZSBvbGQgdGhpbmcNCiMgV2hhdCBhYm91dCBqdXN0IGxvYWRpbmcgdXAgYWxsIHRoZSBkYXRhIHVzaW5nIHRoZSBTRnJhbWUgVXRpbGl0eSBmb3IgbG9hZGluZyBDU1YgZmlsZXM/DQojIFdlIHdpbGwgbmVlZCB0byBtYWtlIHN1cmUgdGhhdCB0aGUgU0ZyYW1lIGhhcyBjb25zaXN0ZW50IGRhdGF0eXBlcywgc28gd2Ugd2lsbCBnaXZlIHRoZSB2YWx1ZSBmb3IgZWFjaCBoZWFkZXINCmNvbHVtbl9oaW50cz1baW50LGludCxpbnQsaW50LGludCxpbnQsaW50LGludCxzdHIsaW50LHN0cixpbnQsaW50LGludCxpbnQsaW50LHN0cixzdHIsaW50LGludCxpbnQsaW50LHN0cixpbnQsaW50LGludCxpbnQsaW50LGludF0NCg0KdCA9IHRpbWUudGltZSgpDQojIG5vdyBsb2FkIHRoZSBmaXJzdCBTRnJhbWUNCnNmID0gZ2wuU0ZyYW1lKCkgIy5yZWFkX2NzdignRGF0YS8xOTg3LmNzdicsY29sdW1uX3R5cGVfaGludHM9Y29sdW1uX2hpbnRzKQ0KDQojIGFuZCB0aGVuIGFwcGVuZCBlYWNoIFNGcmFtZSBpbiBhIGZvciBsb29wDQpmb3IgeWVhciBpbiByYW5nZSgxOTg3LDIwMDkpOg0KICAgIHByaW50ICdyZWFkICVkIGxpbmVzLCByZWFkaW5nIG5leHQgZmlsZSAlZC5jc3YnJShzZi5zaGFwZVswXSx5ZWFyKQ0KICAgIHN5cy5zdGRvdXQuZmx1c2goKQ0KICAgIHNmdG1wID0gZ2wuU0ZyYW1lLnJlYWRfY3N2KCdEYXRhLyVkLmNzdiclKHllYXIpLGNvbHVtbl90eXBlX2hpbnRzPWNvbHVtbl9oaW50cykNCiAgICBzZiA9IHNmLmFwcGVuZChzZnRtcCkNCg0KcHJpbnQgJ0l0IHRvb2sgJS4yZiBzZWNvbmRzIHRvIGNvbmNhdGVuYXRlIHRoZSBtZW1vcnkgbWFwcGVkIGZpbGUnJSh0aW1lLnRpbWUoKS10KQ0KDQp0ID0gdGltZS50aW1lKCkNCnByaW50ICdTYXZpbmcuLi4nLA0Kc2Yuc2F2ZSgnRGF0YS9zZnJhbWVfZGlyZWN0b3J5JykgIyBzYXZlIGEgY29tcHJlc3NlZCB2ZXJzaW9uIG9mIHRoaXMgU0ZyYW1lDQpwcmludCAndG9vayAlLjJmIHNlY29uZHMnJSh0aW1lLnRpbWUoKS10KSwnU2hhcGUgb2YgU0ZyYW1lIGlzJyxzZi5zaGFwZQ0KDQoNCg0KIyBJZiB5b3UgaGF2ZSBhbHJlYWR5IHJ1biB0aGUgbm90ZWJvb2sgYWJvdmUgYW5kIGp1c3Qgd2FudCB0byBsb2FkIHVwIHRoZSBkYXRhDQojIHRoZW4geW91IGNhbiByZWxvYWQgdGhlIFNGcmFtZSBoZXJlDQppbXBvcnQgZ3JhcGhsYWIgYXMgZ2wNCg0Kc2YgPSBnbC5sb2FkX3NmcmFtZSgnRGF0YS9zZnJhbWVfZGlyZWN0b3J5JykNCmBgYA0KDQojIDQuMyBBbmFseXppbmcgcG9wdWxhciBhaXJwb3J0cyB0byBmbHkgZnJvbQ0KDQpgYGB7cHl0aG9ufQ0KDQojIHRvIHBlcmZvcm0gZ3JvdXBpbmcgYW5kIHNwbGl0dGluZw0KIyB3ZSBuZWVkIHRvIHNwZWNpZnkgKDEpIHdoaWNoIGNvbHVtbihzKSB0byBncm91cCB0aGUgU0ZyYW1lIHVzaW5nLCBhbmQgDQojICAgICAgICAgICAgICAgICAgICAoMikgd2hhdCBmdW5jdGlvbiB3ZSB3YW50IHRvIHBlcmZvcm0gb24gdGhlIGdyb3VwDQojIGluIGdyYXBobGFiLCB3ZSBvbmx5IGhhdmUgYSBmZXcgb3B0aW9ucyBmb3IgcGVyZm9ybWluZyBvbiBlYWNoIG9mIHRoZSBncm91cHMuIA0KIyBIZXJlLCBsZXRzIGtlZXAgaXQgc2ltcGxlLS1sZXQncyBncm91cCBieSB0aGUgYWlycG9ydCBvcmlnaW4gYW5kIHRoZW4NCiMgIHVzZSB0aGUgYnVpbHRpbiAnY291bnQnIGZ1bmN0aW9uIHRvIGFnZ3JlZ2F0ZSB0aGUgcmVzdWx0cw0KIyBUaGUgcmVzdWx0IGlzIGFub3RoZXIgU0ZyYW1lIHdpdGggdGhlIFVuaXF1ZSBvcmlnaW4gbmFtZXMgYXMgYSBjb2x1bW4gYW5kIHRoZQ0KIyAgbnVtYmVyIG9mIGVudHJpZXMgaW4gZWFjaCBncm91cCBpbiBhbm90aGVyIGNvbHVtbg0KJXRpbWUgc2ZfY291bnRzID0gc2YuZ3JvdXBieSgnT3JpZ2luJywgeydudW1fZmxpZ2h0cyc6Z2wuYWdncmVnYXRlLkNPVU5UKCl9KQ0Kc2ZfY291bnRzDQoNCmZyb20gbWF0cGxvdGxpYiBpbXBvcnQgcHlwbG90IGFzIHBsdA0KaW1wb3J0IG51bXB5IGFzIG5wDQoNCiVtYXRwbG90bGliIGlubGluZQ0KcGx0LnN0eWxlLnVzZSgnZ2dwbG90JykNCg0KIyBBcyBzZWVuIGFib3ZlLCB0aGUgc2ZfY291bnRzIFNGcmFtZSBoYXMgdGhlIG9yaWdpbiBvZiB0aGUgZmxpZ2h0IG9uIHRoZSBsZWZ0DQojIGFuZCB0aGUgY291bnQgb2YgZmxpZ2h0cyBvbiB0aGUgcmlnaHQgDQoNCiMgbGV0J3MgZ3JhYiB0aGUgdG9wIDEwIGVudHJpZXMNCnNmX3RvcCA9IHNmX2NvdW50cy50b3BrKCdudW1fZmxpZ2h0cycsMTApICMgdGhpcyBpcyBidWlsdGluIGNvbW1hbmQgaW4gZ3JhcGhsYWINCg0KYWlycG9ydHMgPSBucC5hcnJheShzZl90b3BbJ09yaWdpbiddKQ0KY291bnRzID0gbnAuYXJyYXkoc2ZfdG9wWydudW1fZmxpZ2h0cyddKQ0KDQpmaWcgPSBwbHQuZmlndXJlKGZpZ3NpemU9KDgsNCkpDQpwbHQuYmFyaChyYW5nZShsZW4oY291bnRzKSksY291bnRzKQ0KDQojIGFuZCBzZXQgdGhlbSBvbiB0aGUgcGxvdA0KcGx0Lnl0aWNrcyhyYW5nZShsZW4oYWlycG9ydHMpKSwgYWlycG9ydHMpDQoNCnBsdC5zaG93KCkNCmBgYA0KDQojIDQuNCBBbmFseXppbmcgRGVwYXJ0dXJlIGRlbGF5cyBhdCBzcGVjaWZpYyB0aW1lcyBvZiBkYXkNCmBgYHtweXRob259DQpmcm9tIG1hdGggaW1wb3J0IGZsb29yDQojIGZpcnN0LCBsZXQncyBjcmVhdGUgYSBuZXcgY29sdW1uIGluIHRoaXMgU0ZyYW1lIHRoYXQgaGFzIHRoZSBkZXBhcnR1cmUgdGltZSBmbG9vcmVkIHRvIHRoZSBuZWFyZXN0IGhvdXINCnNmWydEZXBUaW1lQnlIb3VyJ10gPSBzZlsnQ1JTRGVwVGltZSddLmFwcGx5KGxhbWJkYSB4OiBmbG9vcih4LzEwMCksZHR5cGU9aW50KQ0Kc2ZbJ0RlcFRpbWVCeUhvdXInXSAjIGFuZCBwcmludCBhIGZldyBvZiB0aGVtIChub3RlOiB0aGUgY29sdW1uIGhhcyBub3QgYmVlbiBldmFsdWF0ZWQgeWV0KQ0KDQojIExldCdzIG5vdyBjaGFuZ2UgdGhlIGhvdXJzIG9mIHRoZSBkYXkgdGhhdCBhcmUgZXF1YWwgdG8gMjQNCiMgd2UgbmVlZCB0byBiZSBjYXJlZnVsIGhlcmUgYmVjYXN1ZSBlYWNoIGNvbHVtbiBpcyBub3QgaW1tdXRhYmxlDQojIGluIHBhbmRhcyB0aGlzIHdvdWxkIGJlOg0KIyAgICBkZi5EZXBUaW1lQnlIb3VyW2RmLkRlcFRpbWVCeUhvdXI9PTI0XSA9IDANCiMgYnV0IHdlIGNhbnQganVzdCBjaGFuZ2UgYSBmZXcgdmFsdWVzIGluIHRoZSBjb2x1bW4sIHdlIG5lZWQgdG8gY2hhbmdlIHRoZW0gYWxsIGFuZCByZXBsYWNlIHRoZW0NCiMgZG9uJ3Qgd29ycnkgdGhvdWdoLCBHcmFwaGxhYiBkb2VzIHRoaXMgc21hcnRseQ0Kc2ZbJ0RlcFRpbWVCeUhvdXInXSA9IHNmWydEZXBUaW1lQnlIb3VyJ10uYXBwbHkobGFtYmRhIHg6IDAgaWYgeD09MjQgZWxzZSB4KQ0KIyBhZ2FpbiwgdGhpcyBjb2x1bW4gaGFzIG5vdCBiZWVuIGV2YWx1YXRlZCB5ZXQgYmVjYXVzZSB0aGF0IHZhbHVlIGhhcyBub3QgeWV0IGJlZW4gYWNjZXNzZWQNCg0KIyBub3cgbGV0cyBncm91cCB0aGUgU0ZyYW1lIGJ5IHRoZSBob3VycyBhbmQgY2FsY3VsYXRlIHRoZSBwZXJjZW50aWxlcyBvZiBlYWNoIGdyb3VwDQojIGhlcmUgaXMgd2hlcmUgdGhlIGxhenkgZXZhbHVhdGlvbiBhY3R1YWxseSBoYXBwZW5zIHNvIHRoaXMgdGFrZXMgYSBsaXR0bGUgd2hpbGUgdG8gY29tcHV0ZQ0KDQojIHRoZSBncm91cGJ5IGZ1bmN0aW9uIHdpbGwgcGFydGl0aW9uIG91ciBTRnJhbWUgaW50byBncm91cHMgYmFzZWQgdXBvbiB0aGUgZ2l2ZW4gY29sdW1uIG9mIGRhdGENCiMgbmV4dCwgd2UgbmVlZCB0byB0ZWxsIGdyYXBobGFiIHdoYXQgb3BlcmF0aW9ucyB0byBwZXJmb3JtIG9uIHRoZSBncm91cCBhbmQgd2hhdCByb3dzDQojIHRvIGRvIHRoYXQsIHdlIHNlbmQgaW4gYSBkaWN0aW9uYXJ5IG9mIG5hbWVzIGFuZCAnb3BlcmF0aW9ucycgDQojIFdlIGRpZCBhIHNpbWlsYXIgb3BlcmF0aW9uIGFib3ZlIHdpdGggdGhlICdDT1VOVCcgYWdncmVnYXRvcg0KIyB0aGVyZSBhcmUgb25seSBhIGNlcnRhaW4gbnVtYmVyIG9mIG9wZXJhdG9ycyB3ZSBjYW4gY2hvb3NlIGZyb20sIHdlIHdpbGwgY2hvb3NlIHRvIHVzZSB0aGUgJ1FVQU5USUxFJw0KIyAgIGFnZ3JlZ2F0b3Igb24gdGhlIGNvbHVtbiAnRGVwRGVsYXknLiBXZSB3YW50IHRvIHRha2UgdGhlIHBlcmNlbnRpbGVzIFswLjkwLDAuOTksMC45OTksMC45OTk5XQ0KIyBXZSBjYW4gYWxzbyBwZXJmb3JtIG90aGVyIG9wZXJhdGlvbnMgYnkgYWRkaW5nIGVudHJpZXMgaW4gdGhlIGRpY3RvbmFyeQ0KIyBTbyB3ZSB3aWxsIGFsc28gdGFrZSB0aGUgJ01BWCcgb2YgZWFjaCBncm91cA0KaW1wb3J0IHRpbWUNCnQgPSB0aW1lLnRpbWUoKQ0KZGVsYXlfc2YgPSBzZi5ncm91cGJ5KCdEZXBUaW1lQnlIb3VyJywgDQogICAgICAgICAgICAgICAgICAgICAgICAgICAgeydkZWxheV9xdWFudGlsZXMnOmdsLmFnZ3JlZ2F0ZS5RVUFOVElMRSgnRGVwRGVsYXknLCBbMC45MCwwLjk5LDAuOTk5LDAuOTk5OV0pLA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAnZGVsYXlfbWF4JzpnbC5hZ2dyZWdhdGUuTUFYKCdEZXBEZWxheScpfSkNCiMgdGhpcyByZXR1cm5zIGEgbmV3IFNGcmFtZSB3aXRoIHRoZSBzcGVjaWZpZWQgY29sdW1ucyBmcm9tIGVhY2ggYWdncmVnYXRpb24NCg0KcHJpbnQgJ1Rvb2sgJS4yZiBzZWNvbmRzIHRvIHJ1biclKHRpbWUudGltZSgpLXQpDQpgYGANCg0KYGBge3B5dGhvbn0NCiMgc29ydCBpdCBieSB3aGVuIGRlcGFydGVkIGFuZCBkaXNwbGF5IGl0DQpkZWxheV9zZiA9IGRlbGF5X3NmLnNvcnQoJ0RlcFRpbWVCeUhvdXInKQ0KZGVsYXlfc2YNCmBgYA0KDQpgYGB7cHl0aG9ufQ0KIyB0byB1c2UgbWF0cGxvdGxpYiwgd2UgbmVlZCB0byBjb252ZXJ0IG92ZXIgdG8gbnVtcHkgYXJyYXlzDQojIHRoaXMgaXMgYSBmaW5lIG9wZXJhdGlvbiBiZWNhdXNlIHRoZSBuZXcgYWdncmVnYXRlZCBTRnJhbWUgd2UgYXJlIA0KIyB3b3JraW5nIChkZWxheV9zZikgd2l0aCBpcyBxdWl0ZSBzbWFsbA0KeCA9IG5wLmFycmF5KGRlbGF5X3NmWydEZXBUaW1lQnlIb3VyJ10pDQp5ID0gbnAuYXJyYXkoZGVsYXlfc2ZbJ2RlbGF5X3F1YW50aWxlcyddKQ0KDQpwbHQuZmlndXJlKGZpZ3NpemU9KDEwLDQpKQ0KcGx0LnN1YnBsb3QoMSwyLDEpDQpwbHQucGxvdCh4LHkpDQpwbHQueWxhYmVsKCdNaW51dGVzIERlbGF5ZWQnKQ0KcGx0LnhsYWJlbCgnSG91ciBvZiBEYXknKQ0KDQoNCnBsdC5zdWJwbG90KDEsMiwyKQ0KcGx0LnBsb3QoeCx5KQ0KcGx0LnhsYWJlbCgnSG91ciBvZiBEYXknKQ0KcGx0LnlsaW0oMCwxNDAwKSAjIG1ha2UgdGhlIHNhbWUgYXhlcyBhcyBpbiB0aGUgYm9vaw0KcGx0LmxlZ2VuZChbJzAuOScsJzAuOTknLCcwLjk5OScsJzAuOTk5OSddKQ0KDQpwbHQuc2hvdygpDQpgYGANCg0KIyA0LjUgQ2FsY3VsYXRlIHBsYW5lIGFnZSB1c2luZyBEYXRvDQoNCmBgYHtweXRob259DQojIG9ubHkgdXNlIHllYXJzIHdoZXJlIHRoZSB0YWlsIG51bWJlciB3YXMgcmVjb3JkZWQNCiMgd2UgY2FuIG1hbmlwdWxhdGUgdGhlIFNGcmFtZSBmYWlybHkgZWFzaWx5IGluIGdyYXBobGFiLCBzbyBsZXQncyBkbyBpdA0Kc2ZfdG1wID0gc2ZbWydUYWlsTnVtJywnWWVhcicsJ01vbnRoJywnRGVwRGVsYXknXV1bc2ZbJ1llYXInXT4xOTk0XQ0KIyBsZXRzIHRyeSB0byBtYWtlIGEgZnVuY3Rpb24gZm9yIGdldHRpbmcgdGhlIGFnZSBvZiB0aGUgcGxhbmUNCiMgRmlyc3QgbGV0cyBqdXN0IHNhdmUgdGhlIHBsYW5lJ3MgYWdlIGluIHllYXJzDQpzZl90bXBbJ0ZsaWdodEFnZSddID0gMTIqc2ZfdG1wWydZZWFyJ10rc2ZfdG1wWydNb250aCddLTENCg0KIyBhbmQgdGFrZSB0aGUgbWluaW11bSBvZiB0aGF0IGluIG9yZGVyIHRvIGdldCBpdHMgZmlyc3QgZmxpZ2h0DQp0ID0gdGltZS50aW1lKCkNCnNmX21pbl9hZ2VzID0gc2ZfdG1wW1snVGFpbE51bScsJ0ZsaWdodEFnZSddXS5ncm91cGJ5KCdUYWlsTnVtJyx7J0ZpcnN0RmxpZ2h0JzpnbC5hZ2dyZWdhdGUuTUlOKCdGbGlnaHRBZ2UnKX0pDQpwcmludCAnVG9vayAlLjJmIHNlY29uZHMgdG8gcnVuJyUodGltZS50aW1lKCktdCkNCiMgTm93IHRyYW5zZm9ybSB0aGUgRmlyc3RGbGlnaHQgQ29sdW1uIGludG8gdGhlIG9yaWdpbmFsIGRhdGFmcmFtZSBzaXplDQojIHRvIGRvIHRoYXQgd2UgY2FuIGp1c3QgZG8gYSBqb2luIG9uIGEgZmV3IGNvbHVtbnMgb2Ygb3VyIHNmDQojIHRoaXMgd2lsbCBzYXZlIHRoZSBmbGlnaHQgYWdlIGFuZCB0aGUgbWluaW11bSBpbiBhIG5ldyBTRnJhbWUNCiV0aW1lIHNmX2Zld2NvbHMgPSBzZl90bXBbWydUYWlsTnVtJywnRmxpZ2h0QWdlJ11dLmpvaW4oc2ZfbWluX2FnZXMsb249J1RhaWxOdW0nLGhvdz0nbGVmdCcpICMgbG9uZyBvcGVyYXRpb24NCiMgYW5kIG5vdyB3ZSBjYW4gc2ltcGx5IHN1YnRyYWN0IHRoZSBuZXcgY2FsY3VsYXRlZCBxdWFudGl0eSBhbmQgYWRkIHRvIHRoZSBvcmlnaW5hbCBTRnJhbWUNCnNmX3RtcFsnQWdlJ10gPSBzZl9mZXdjb2xzWydGbGlnaHRBZ2UnXS1zZl9mZXdjb2xzWydGaXJzdEZsaWdodCddDQpgYGANCg0KIyA0LjYgTGluZWFyIG1vZGVsIA0KYGBge3B5dGhvbn0NCiMgbm93IGxvb2sgYXQgdGhlIGFnZSBhbmQgZGVsYXkgdGltZSBpbiB0ZXJtcyBvZiByZWdyZXNzaW9uIChsaWtlIHlvdXIgYm9vaykNCiV0aW1lIGxpbl9tb2RlbCA9IGdsLmxpbmVhcl9yZWdyZXNzaW9uLmNyZWF0ZShzZl90bXBbJ0RlcERlbGF5JywnQWdlJ10uZHJvcG5hKCksIHRhcmdldD0nRGVwRGVsYXknLCBmZWF0dXJlcz1bJ0FnZSddKQ0KDQpsaW5fbW9kZWxbJ2NvZWZmaWNpZW50cyddDQpgYGANCg0K</div>
 
 
 
