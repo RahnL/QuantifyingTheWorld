@@ -5,13 +5,15 @@ output: html_notebook
 
 Based on Eric Larons jupyter notebook, and code from the book we're using (add references!)
 
+
 Download and parse data
-```{python}
+```{python engine.path = '/path/to/python3'}
 import os, sys
-path = "Data"
+path = "c:/Temp/Data"
 if not os.path.exists(path):
     os.mkdir( path, 0755)
-    
+os.chdir(path)
+
 import urllib # this is part of the standard library for python
 
 years_to_download = range(1987,2009) # get the years 1987 through 2008
@@ -34,6 +36,7 @@ for year in years_to_download:
     
 print files  
 
+''' We don't need this part for now
 import bz2 # this is also part of the python standard library
 
 # Now lets decompress all the files
@@ -50,20 +53,24 @@ for filename in files:
                 new_file.write(data)
     else:
         print filepath,'already is uncompressed.'
-        
-```
+'''
 
+```
 
 
 ## 2 - Load files into memory
 ```{python}
 import pandas as pd
 import numpy as np
-import sys
+import sys, os
+path = "c:/Temp/Data"
+if not os.path.exists(path):
+    os.mkdir( path, 0755)
+os.chdir(path)
 
 total_length=0
 for year in [1987, 1988]:
-    csvfile = 'Data/%d.csv'%(year)
+    csvfile = 'Data/%d.csv.bz2'%(year)
     print 'loading', csvfile
     sys.stdout.flush()
     
@@ -79,11 +86,10 @@ df.head()
 Do same import as above python, but in R, for comparison
 ```{r}
 # need this, since working directory is different between python code and r
-setwd("C:/Users/rahnl/Documents/Data")
 
 total_length <- 0
 for(year in 1987:1988){
-    filename = paste(year,".csv",sep="")
+    filename = paste('Data/',year,".csv",sep="")
     x<-read.csv(filename)
     total_length <- total_length + nrow(x)
 }
@@ -100,9 +106,13 @@ import numpy as np
 import sys
 import time
 import cPickle as pickle
+path = "c:/Temp/Data"
+if not os.path.exists(path):
+    os.mkdir( path, 0755)
+os.chdir(path)
 
 unique_values = {} # create an empty dictionary of the column name an the unique values in it
-for year in range(1987,2009):
+for year in range(1987,1988):
     t = time.time()
     # get file name of the csv
     csvfile = 'Data/%d.csv'%(year)
@@ -110,10 +120,11 @@ for year in range(1987,2009):
     sys.stdout.flush()
     
     # read the file
-    df = pd.read_csv(csvfile,usecols=['Origin', 'Dest', 'UniqueCarrier','TailNum','CancellationCode'],
-        dtype={'TailNum': str}) 
+    df = pd.read_csv(csvfile,usecols=['Origin', 'Dest', 'UniqueCarrier','TailNum','CancellationCode']
+                    ,dtype={'CancellationCode':str})
+                    #'TailNum': str,'Cancelled':int, 'Origin': str, #'Dest':str,'UniqueCarrier':str,'TailNum':str,'CancellationCode':str}) 
     #df = df.select_dtypes(exclude=['float64','int64']) # grab only the non-numeric data
-    
+   
     print '...finding unique values',
     sys.stdout.flush()
     
@@ -140,58 +151,292 @@ print unique_values.keys()
 print 'One example:',unique_values['CancellationCode']
 ```
 
-2 - load data into memory
-
-
-```{r}
-total_length <- 0
-for(year in 1987:1988){
-    filename = paste("Data/",year,".csv",sep="")
-    x<-read.csv(filename)
-    total_length <- total_length + nrow(x)
-}
-print(total_length)
-```
-2.1 Preprocessing Data in Chunks
+2 - Concatenate all the files
 ```{python}
-# In this data, there are multiple variables that are objects
-# these need to be appropriately converted to numbers (integers) 
-# To do this, we must know the uniqe values in each of the columns, let's do this first
 import pandas as pd
 import numpy as np
 import sys
+import os
 import time
-import _pickle as pickle
+path = "c:/Temp/Data"
+if not os.path.exists(path):
+    os.mkdir( path, 0755)
+os.chdir(path)
 
-unique_values = {} # create an empty dictionary of the column name an the unique values in it
-for year in range(1987,2009):
+def fast_numpy_replace(np_vector,replace_set):
+    # you can look at this function at your leisure, but essentially we use fast set 
+    # comparison to try and speed up the analysis
+    replace_set = np.array(list(replace_set)) # get "possible values" as a numpy array
+    n = np.ndarray(np_vector.shape).astype(np.float64) # fill in this matrix
+    
+    vector_as_set,idx_back = np.unique(np_vector,return_inverse=True) # get the unique indices and locations
+    
+    # now loop through the unique values for this dataset
+    for idx,val in enumerate(vector_as_set):
+        # find what number this should be (like a hash)
+        category_num = np.nonzero(replace_set == val)[0][0]
+        n[idx_back==idx] = category_num # set the values as this category, vectorize for speed
+        
+    return n.astype(np.float64)
+    
+fileHandle = open('AirlineDataAll.csv', 'w') # open and replace if needed
+years = range(1987,1988)
+for year in years:
     t = time.time()
+    
     # get file name of the csv
-    csvfile = 'Data/%d.csv'%(year)
-    print ('loading',csvfile, )
+    csvfile = '%d.csv.bz2'%(year)
+    print 'Running...',csvfile,
     sys.stdout.flush()
     
-    # read the file
-    df = pd.read_csv(csvfile,usecols=['Origin', 'Dest',   'UniqueCarrier','TailNum','CancellationCode']) 
-    #df = df.select_dtypes(exclude=['float64','int64']) # grab only the non-numeric data
+    chunksize = 10 ** 6
+    for chunk in pd.read_csv(csvfile, chunksize=chunksize,usecols=['Origin', 'Dest', 'UniqueCarrier','TailNum','CancellationCode'],dtype={'CancellationCode':str}):
+      # read the file
+      t = time.time()
+      print '...finding unique values',
+      sys.stdout.flush()
+      
     
-    print ('...finding unique values',sys.stdout.flush())
-    
-    for col in df.columns:
-        # check to see if we have seen this column before
-        s = set(df[col].values.astype(np.str))
-        if col not in unique_values:
-            # if not, then create a key with the unique values for that column in it
-            unique_values[col] = s
-        else:
-            # otherwise make sure that the remaining columns are unique
-            unique_values[col] |= s
-            
-    print( '...finished, %.2f seconds'%(time.time()-t))
-    sys.stdout.flush()
-    del df
+      print 'loaded, ...replacing values',sys.stdout.flush()
+        
+      # now replace the matching columnar data with the proper number category
+      for key in unique_values.keys():
+          if key in df:
+              print key[0:4],
+              sys.stdout.flush()
+              tmp = df[key].values.astype(np.str)
+              df[key] = fast_numpy_replace(tmp,unique_values[key])
+       
+      print '...',sys.stdout.flush()
+      
+      for col in df:
+          df[col] = np.round(df[col].astype(np.float64)) # use floats to keep the nan's inline with numpy representation
+      
+      print 'writing',sys.stdout.flush()
+      
+      # these lines make one large file with the numeric data
+      # it also solves a problem with pandas closing the file that takes an inordinate amount of time
+      # NOTE: using binary here would be a huge speedup, but I am not sure about the binary structure of the 
+      # backing file for bigmatrix, so we stick with CSV
+      # TODO: find out if the backing file is just a dump of the c struct to file
+      if year==years[0]:
+          df.to_csv(fileHandle,index=False, index_label=False, na_rep="NA",float_format='%.0f')
+      else:
+          df.to_csv(fileHandle, mode='a', header=False, index=False, index_label=False,  na_rep="NA", float_format='%.0f')
+          
+      print ', %.2f sec.'%(time.time()-t)
+      del df
 
-# Save out the dictionary for later use
-pickle.dump( unique_values, open( "Data/unique_mapping.p", "wb" ) )
+print 'closing file',
+sys.stdout.flush()
+
+fileHandle.close()
+print '...Done'
+```
+
+
+```{r}
+
+```
+Replacing unique values as integer and resaving dataframe.
+And creating one large file AirlineDataAll with data for all years
+
+```{python}
+# now lets take a look to see what has actually changed in the file
+# let's load the head of 1987 and the big CSV file to see how they compare
+print 'New File Format:'
+!head Data/AirlineDataAll.csv
+print ''
+print 'Old File Format'
+!head Data/1987.csv
+
+
+# let's now look at the tail of our big dataset and the tail of the 2008 file
+# do they compare nicely?
+print 'New File Format:'
+!tail Data/AirlineDataAll.csv
+print ''
+print 'Old File Format:'
+!tail Data/2008.csv
+
+
+!ls -all Data/*All.csv 
+```
+
+## 4 Handling out of core memory and analyzing data using Graphlab Create
+# 4.1 Loading 12 gb data
+```{python}
+import graphlab as gl
+sf = gl.SFrame('Data/AirlineDataAll.csv')
+sf.shape
+```
+
+# 4.2 Preprocess: Concatenate and save compressed binary version to perform operations
+```{python}
+del sf # get rid of the old thing
+# What about just loading up all the data using the SFrame Utility for loading CSV files?
+# We will need to make sure that the SFrame has consistent datatypes, so we will give the value for each header
+column_hints=[int,int,int,int,int,int,int,int,str,int,str,int,int,int,int,int,str,str,int,int,int,int,str,int,int,int,int,int,int]
+
+t = time.time()
+# now load the first SFrame
+sf = gl.SFrame() #.read_csv('Data/1987.csv',column_type_hints=column_hints)
+
+# and then append each SFrame in a for loop
+for year in range(1987,2009):
+    print 'read %d lines, reading next file %d.csv'%(sf.shape[0],year)
+    sys.stdout.flush()
+    sftmp = gl.SFrame.read_csv('Data/%d.csv'%(year),column_type_hints=column_hints)
+    sf = sf.append(sftmp)
+
+print 'It took %.2f seconds to concatenate the memory mapped file'%(time.time()-t)
+
+t = time.time()
+print 'Saving...',
+sf.save('Data/sframe_directory') # save a compressed version of this SFrame
+print 'took %.2f seconds'%(time.time()-t),'Shape of SFrame is',sf.shape
+
+
+
+# If you have already run the notebook above and just want to load up the data
+# then you can reload the SFrame here
+import graphlab as gl
+
+sf = gl.load_sframe('Data/sframe_directory')
+```
+
+# 4.3 Analyzing popular airports to fly from
+
+```{python}
+
+# to perform grouping and splitting
+# we need to specify (1) which column(s) to group the SFrame using, and 
+#                    (2) what function we want to perform on the group
+# in graphlab, we only have a few options for performing on each of the groups. 
+# Here, lets keep it simple--let's group by the airport origin and then
+#  use the builtin 'count' function to aggregate the results
+# The result is another SFrame with the Unique origin names as a column and the
+#  number of entries in each group in another column
+%time sf_counts = sf.groupby('Origin', {'num_flights':gl.aggregate.COUNT()})
+sf_counts
+
+from matplotlib import pyplot as plt
+import numpy as np
+
+%matplotlib inline
+plt.style.use('ggplot')
+
+# As seen above, the sf_counts SFrame has the origin of the flight on the left
+# and the count of flights on the right 
+
+# let's grab the top 10 entries
+sf_top = sf_counts.topk('num_flights',10) # this is builtin command in graphlab
+
+airports = np.array(sf_top['Origin'])
+counts = np.array(sf_top['num_flights'])
+
+fig = plt.figure(figsize=(8,4))
+plt.barh(range(len(counts)),counts)
+
+# and set them on the plot
+plt.yticks(range(len(airports)), airports)
+
+plt.show()
+```
+
+# 4.4 Analyzing Departure delays at specific times of day
+```{python}
+from math import floor
+# first, let's create a new column in this SFrame that has the departure time floored to the nearest hour
+sf['DepTimeByHour'] = sf['CRSDepTime'].apply(lambda x: floor(x/100),dtype=int)
+sf['DepTimeByHour'] # and print a few of them (note: the column has not been evaluated yet)
+
+# Let's now change the hours of the day that are equal to 24
+# we need to be careful here becasue each column is not immutable
+# in pandas this would be:
+#    df.DepTimeByHour[df.DepTimeByHour==24] = 0
+# but we cant just change a few values in the column, we need to change them all and replace them
+# don't worry though, Graphlab does this smartly
+sf['DepTimeByHour'] = sf['DepTimeByHour'].apply(lambda x: 0 if x==24 else x)
+# again, this column has not been evaluated yet because that value has not yet been accessed
+
+# now lets group the SFrame by the hours and calculate the percentiles of each group
+# here is where the lazy evaluation actually happens so this takes a little while to compute
+
+# the groupby function will partition our SFrame into groups based upon the given column of data
+# next, we need to tell graphlab what operations to perform on the group and what rows
+# to do that, we send in a dictionary of names and 'operations' 
+# We did a similar operation above with the 'COUNT' aggregator
+# there are only a certain number of operators we can choose from, we will choose to use the 'QUANTILE'
+#   aggregator on the column 'DepDelay'. We want to take the percentiles [0.90,0.99,0.999,0.9999]
+# We can also perform other operations by adding entries in the dictonary
+# So we will also take the 'MAX' of each group
+import time
+t = time.time()
+delay_sf = sf.groupby('DepTimeByHour', 
+                            {'delay_quantiles':gl.aggregate.QUANTILE('DepDelay', [0.90,0.99,0.999,0.9999]),
+                             'delay_max':gl.aggregate.MAX('DepDelay')})
+# this returns a new SFrame with the specified columns from each aggregation
+
+print 'Took %.2f seconds to run'%(time.time()-t)
+```
+
+```{python}
+# sort it by when departed and display it
+delay_sf = delay_sf.sort('DepTimeByHour')
+delay_sf
+```
+
+```{python}
+# to use matplotlib, we need to convert over to numpy arrays
+# this is a fine operation because the new aggregated SFrame we are 
+# working (delay_sf) with is quite small
+x = np.array(delay_sf['DepTimeByHour'])
+y = np.array(delay_sf['delay_quantiles'])
+
+plt.figure(figsize=(10,4))
+plt.subplot(1,2,1)
+plt.plot(x,y)
+plt.ylabel('Minutes Delayed')
+plt.xlabel('Hour of Day')
+
+
+plt.subplot(1,2,2)
+plt.plot(x,y)
+plt.xlabel('Hour of Day')
+plt.ylim(0,1400) # make the same axes as in the book
+plt.legend(['0.9','0.99','0.999','0.9999'])
+
+plt.show()
+```
+
+# 4.5 Calculate plane age using Dato
+
+```{python}
+# only use years where the tail number was recorded
+# we can manipulate the SFrame fairly easily in graphlab, so let's do it
+sf_tmp = sf[['TailNum','Year','Month','DepDelay']][sf['Year']>1994]
+# lets try to make a function for getting the age of the plane
+# First lets just save the plane's age in years
+sf_tmp['FlightAge'] = 12*sf_tmp['Year']+sf_tmp['Month']-1
+
+# and take the minimum of that in order to get its first flight
+t = time.time()
+sf_min_ages = sf_tmp[['TailNum','FlightAge']].groupby('TailNum',{'FirstFlight':gl.aggregate.MIN('FlightAge')})
+print 'Took %.2f seconds to run'%(time.time()-t)
+# Now transform the FirstFlight Column into the original dataframe size
+# to do that we can just do a join on a few columns of our sf
+# this will save the flight age and the minimum in a new SFrame
+%time sf_fewcols = sf_tmp[['TailNum','FlightAge']].join(sf_min_ages,on='TailNum',how='left') # long operation
+# and now we can simply subtract the new calculated quantity and add to the original SFrame
+sf_tmp['Age'] = sf_fewcols['FlightAge']-sf_fewcols['FirstFlight']
+```
+
+# 4.6 Linear model 
+```{python}
+# now look at the age and delay time in terms of regression (like your book)
+%time lin_model = gl.linear_regression.create(sf_tmp['DepDelay','Age'].dropna(), target='DepDelay', features=['Age'])
+
+lin_model['coefficients']
 ```
 
