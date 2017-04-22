@@ -5,13 +5,15 @@ output: html_notebook
 
 Based on Eric Larons jupyter notebook, and code from the book we're using (add references!)
 
+
 Download and parse data
-```{python}
+```{python engine.path = '/path/to/python3'}
 import os, sys
-path = "Data"
+path = "c:/Temp/Data"
 if not os.path.exists(path):
     os.mkdir( path, 0755)
-    
+os.chdir(path)
+
 import urllib # this is part of the standard library for python
 
 years_to_download = range(1987,2009) # get the years 1987 through 2008
@@ -34,6 +36,7 @@ for year in years_to_download:
     
 print files  
 
+''' We don't need this part for now
 import bz2 # this is also part of the python standard library
 
 # Now lets decompress all the files
@@ -50,20 +53,24 @@ for filename in files:
                 new_file.write(data)
     else:
         print filepath,'already is uncompressed.'
-        
-```
+'''
 
+```
 
 
 ## 2 - Load files into memory
 ```{python}
 import pandas as pd
 import numpy as np
-import sys
+import sys, os
+path = "c:/Temp/Data"
+if not os.path.exists(path):
+    os.mkdir( path, 0755)
+os.chdir(path)
 
 total_length=0
 for year in [1987, 1988]:
-    csvfile = 'Data/%d.csv'%(year)
+    csvfile = 'Data/%d.csv.bz2'%(year)
     print 'loading', csvfile
     sys.stdout.flush()
     
@@ -79,11 +86,10 @@ df.head()
 Do same import as above python, but in R, for comparison
 ```{r}
 # need this, since working directory is different between python code and r
-setwd("C:/Users/rahnl/Documents/Data")
 
 total_length <- 0
 for(year in 1987:1988){
-    filename = paste(year,".csv",sep="")
+    filename = paste('Data/',year,".csv",sep="")
     x<-read.csv(filename)
     total_length <- total_length + nrow(x)
 }
@@ -100,9 +106,13 @@ import numpy as np
 import sys
 import time
 import cPickle as pickle
+path = "c:/Temp/Data"
+if not os.path.exists(path):
+    os.mkdir( path, 0755)
+os.chdir(path)
 
 unique_values = {} # create an empty dictionary of the column name an the unique values in it
-for year in range(1987,2009):
+for year in range(1987,1988):
     t = time.time()
     # get file name of the csv
     csvfile = 'Data/%d.csv'%(year)
@@ -110,9 +120,9 @@ for year in range(1987,2009):
     sys.stdout.flush()
     
     # read the file
-    df = pd.read_csv(csvfile,usecols=['Origin', 'Dest', 'UniqueCarrier','TailNum','CancellationCode'],
-        dtype={'CancellationCode':str})
-        #'TailNum': str,'Cancelled':int, 'Origin': str, #'Dest':str,'UniqueCarrier':str,'TailNum':str,'CancellationCode':str}) 
+    df = pd.read_csv(csvfile,usecols=['Origin', 'Dest', 'UniqueCarrier','TailNum','CancellationCode']
+                    ,dtype={'CancellationCode':str})
+                    #'TailNum': str,'Cancelled':int, 'Origin': str, #'Dest':str,'UniqueCarrier':str,'TailNum':str,'CancellationCode':str}) 
     #df = df.select_dtypes(exclude=['float64','int64']) # grab only the non-numeric data
    
     print '...finding unique values',
@@ -141,12 +151,18 @@ print unique_values.keys()
 print 'One example:',unique_values['CancellationCode']
 ```
 
-2 - load data into memory
-
+2 - Concatenate all the files
+```{python}
 import pandas as pd
 import numpy as np
 import sys
+import os
 import time
+path = "c:/Temp/Data"
+if not os.path.exists(path):
+    os.mkdir( path, 0755)
+os.chdir(path)
+
 def fast_numpy_replace(np_vector,replace_set):
     # you can look at this function at your leisure, but essentially we use fast set 
     # comparison to try and speed up the analysis
@@ -163,48 +179,53 @@ def fast_numpy_replace(np_vector,replace_set):
         
     return n.astype(np.float64)
     
-fileHandle = open('Data/AirlineDataAll.csv', 'w') # open and replace if needed
-years = range(1987,2009)
+fileHandle = open('AirlineDataAll.csv', 'w') # open and replace if needed
+years = range(1987,1988)
 for year in years:
     t = time.time()
     
     # get file name of the csv
-    csvfile = 'Data/%d.csv'%(year)
+    csvfile = '%d.csv.bz2'%(year)
     print 'Running...',csvfile,
     sys.stdout.flush()
     
-    # read the file
-    df = pd.read_csv(csvfile) 
+    chunksize = 10 ** 6
+    for chunk in pd.read_csv(csvfile, chunksize=chunksize,usecols=['Origin', 'Dest', 'UniqueCarrier','TailNum','CancellationCode'],dtype={'CancellationCode':str}):
+      # read the file
+      t = time.time()
+      print '...finding unique values',
+      sys.stdout.flush()
+      
     
-    print 'loaded, ...replacing values',sys.stdout.flush()
+      print 'loaded, ...replacing values',sys.stdout.flush()
         
-    # now replace the matching columnar data with the proper number category
-    for key in unique_values.keys():
-        if key in df:
-            print key[0:4],
-            sys.stdout.flush()
-            tmp = df[key].values.astype(np.str)
-            df[key] = fast_numpy_replace(tmp,unique_values[key])
-     
-    print '...',sys.stdout.flush()
-    
-    for col in df:
-        df[col] = np.round(df[col].astype(np.float64)) # use floats to keep the nan's inline with numpy representation
-    
-    print 'writing',sys.stdout.flush()
-    
-    # these lines make one large file with the numeric data
-    # it also solves a problem with pandas closing the file that takes an inordinate amount of time
-    # NOTE: using binary here would be a huge speedup, but I am not sure about the binary structure of the 
-    # backing file for bigmatrix, so we stick with CSV
-    # TODO: find out if the backing file is just a dump of the c struct to file
-    if year==years[0]:
-        df.to_csv(fileHandle,index=False, index_label=False, na_rep="NA",float_format='%.0f')
-    else:
-        df.to_csv(fileHandle, mode='a', header=False, index=False, index_label=False,  na_rep="NA", float_format='%.0f')
-        
-    print ', %.2f sec.'%(time.time()-t)
-    del df
+      # now replace the matching columnar data with the proper number category
+      for key in unique_values.keys():
+          if key in df:
+              print key[0:4],
+              sys.stdout.flush()
+              tmp = df[key].values.astype(np.str)
+              df[key] = fast_numpy_replace(tmp,unique_values[key])
+       
+      print '...',sys.stdout.flush()
+      
+      for col in df:
+          df[col] = np.round(df[col].astype(np.float64)) # use floats to keep the nan's inline with numpy representation
+      
+      print 'writing',sys.stdout.flush()
+      
+      # these lines make one large file with the numeric data
+      # it also solves a problem with pandas closing the file that takes an inordinate amount of time
+      # NOTE: using binary here would be a huge speedup, but I am not sure about the binary structure of the 
+      # backing file for bigmatrix, so we stick with CSV
+      # TODO: find out if the backing file is just a dump of the c struct to file
+      if year==years[0]:
+          df.to_csv(fileHandle,index=False, index_label=False, na_rep="NA",float_format='%.0f')
+      else:
+          df.to_csv(fileHandle, mode='a', header=False, index=False, index_label=False,  na_rep="NA", float_format='%.0f')
+          
+      print ', %.2f sec.'%(time.time()-t)
+      del df
 
 print 'closing file',
 sys.stdout.flush()
